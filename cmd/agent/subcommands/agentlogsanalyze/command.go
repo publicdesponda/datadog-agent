@@ -15,8 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
+	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/logs"
 	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
@@ -101,7 +101,7 @@ func logsAnalyze(cliParams *CliParams, defaultConfPath string, defaultLogFile st
 			config.WithConfigMissingOK(true),
 			config.WithConfigName("agent")),
 		),
-		fx.Supply(logComponent.LogForDaemon(string(loggerName), "log_file", params.DefaultLogFile)),
+		fx.Supply(log.ForDaemon(string(loggerName), "log_file", params.DefaultLogFile)),
 		getSharedFxOption(),
 	)
 }

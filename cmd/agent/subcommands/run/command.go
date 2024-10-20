@@ -329,6 +329,7 @@ func run(log log.Component,
 }
 
 func getSharedFxOption() fx.Option {
+	//wack
 	return fx.Options(
 		flare.Module(flare.NewParams(
 			defaultpaths.GetDistPath(),
