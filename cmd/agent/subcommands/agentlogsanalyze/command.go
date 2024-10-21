@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	adScheduler "github.com/DataDog/datadog-agent/pkg/logs/schedulers/ad"
-	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
@@ -106,7 +105,7 @@ func logsAnalyze(cliParams *CliParams, defaultConfPath string, defaultLogFile st
 	)
 }
 
-func start(cliParams *CliParams, config config.Component, log log.Component, params *Params, logsAgent util.Optional[logsAgent.Component]) error {
+func start(cliParams *CliParams, config config.Component, log log.Component, params *Params, logsAgent util.optional[logsAgent.Component]) error {
 	// Main context passed to components
 	// ctx, cancel := context.WithCancel(context.Background())
 
