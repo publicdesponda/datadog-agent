@@ -15,6 +15,7 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 	bpflib "github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/btf"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 	ebpftelemetry "github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
@@ -39,10 +40,29 @@ func LoadCOREAsset(filename string, startFn func(bytecode.AssetReader, manager.O
 	if err != nil {
 		return err
 	}
+	return loader.loadCOREAsset(filename, func(buf bytecode.AssetReader, modLoadFunc KernelModuleBTFLoadFunc, vmlinux *btf.Spec) error {
+		opts := manager.Options{
+			KernelModuleBTFLoadFunc: modLoadFunc,
+			VerifierOptions: bpflib.CollectionOptions{
+				Programs: bpflib.ProgramOptions{
+					KernelTypes: vmlinux,
+				},
+			},
+		}
+		return startFn(buf, opts)
+	})
+}
+
+// LoadCORENoManagerAsset is like LoadCOREAsset but does not force usage of ebpf-manager.Manager
+func LoadCORENoManagerAsset(filename string, startFn func(bytecode.AssetReader, KernelModuleBTFLoadFunc, *btf.Spec) error) error {
+	loader, err := coreLoader(NewConfig())
+	if err != nil {
+		return err
+	}
 	return loader.loadCOREAsset(filename, startFn)
 }
 
-func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.AssetReader, manager.Options) error) error {
+func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.AssetReader, KernelModuleBTFLoadFunc, *btf.Spec) error) error {
 	var result ebpftelemetry.COREResult
 	base := strings.TrimSuffix(filename, path.Ext(filename))
 	defer func() {
@@ -64,16 +84,7 @@ func (c *coreAssetLoader) loadCOREAsset(filename string, startFn func(bytecode.A
 	}
 	defer buf.Close()
 
-	opts := manager.Options{
-		KernelModuleBTFLoadFunc: ret.moduleLoadFunc,
-		VerifierOptions: bpflib.CollectionOptions{
-			Programs: bpflib.ProgramOptions{
-				KernelTypes: ret.vmlinux,
-			},
-		},
-	}
-
-	err = startFn(buf, opts)
+	err = startFn(buf, ret.moduleLoadFunc, ret.vmlinux)
 	if err != nil {
 		var ve *bpflib.VerifierError
 		if errors.As(err, &ve) {

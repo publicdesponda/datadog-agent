@@ -19,10 +19,10 @@ import (
 	"time"
 	"unsafe"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cihub/seelog"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
+	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/features"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
@@ -78,9 +78,9 @@ func NewProbe(cfg *ddebpf.Config) (*Probe, error) {
 	if cfg.BPFDebug {
 		filename = "ebpf-debug.o"
 	}
-	err = ddebpf.LoadCOREAsset(filename, func(buf bytecode.AssetReader, opts manager.Options) error {
+	err = ddebpf.LoadCORENoManagerAsset(filename, func(buf bytecode.AssetReader, modLoadFunc ddebpf.KernelModuleBTFLoadFunc, vmlinux *btf.Spec) error {
 		var err error
-		probe, err = startEBPFCheck(buf, opts)
+		probe, err = startEBPFCheck(buf, modLoadFunc, vmlinux)
 		return err
 	})
 	if err != nil {
@@ -107,7 +107,7 @@ func NewProbe(cfg *ddebpf.Config) (*Probe, error) {
 	return probe, nil
 }
 
-func startEBPFCheck(buf bytecode.AssetReader, opts manager.Options) (*Probe, error) {
+func startEBPFCheck(buf bytecode.AssetReader, _ ddebpf.KernelModuleBTFLoadFunc, vmlinux *btf.Spec) (*Probe, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,11 @@ func startEBPFCheck(buf bytecode.AssetReader, opts manager.Options) (*Probe, err
 	}
 
 	p := Probe{nrcpus: nrcpus}
-	p.coll, err = ebpf.NewCollectionWithOptions(collSpec, opts.VerifierOptions)
+	p.coll, err = ebpf.NewCollectionWithOptions(collSpec, ebpf.CollectionOptions{
+		Programs: ebpf.ProgramOptions{
+			KernelTypes: vmlinux,
+		},
+	})
 	if err != nil {
 		var ve *ebpf.VerifierError
 		if errors.As(err, &ve) {
