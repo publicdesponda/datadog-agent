@@ -15,15 +15,18 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/spf13/cobra"
+
 	"github.com/DataDog/datadog-agent/cmd/agent/command"
+	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
+	logComponent "github.com/DataDog/datadog-agent/comp/core/log/fx"
+	workloadmeta "github.com/DataDog/datadog-agent/comp/core/workloadmeta/def"
 	"github.com/DataDog/datadog-agent/comp/logs"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
-
-	"github.com/spf13/cobra"
 )
 
 // CliParams are the command-line arguments for this subcommand
@@ -44,24 +47,19 @@ type Params struct {
 func getSharedFxOption() fx.Option {
 	return fx.Options(
 		config.Module(),
-		logComponent,
-
-		// TODO: (components) - some parts of the agent (such as the logs agent) implicitly depend on the global state
-		// set up by LoadComponents. In order for components to use lifecycle hooks that also depend on this global state, we
-		// have to ensure this code gets run first. Once the common package is made into a component, this can be removed.
+		logComponent.Module(),
 		fx.Invoke(func(lc fx.Lifecycle) {
 			lc.Append(fx.Hook{
 				OnStart: func(ctx context.Context) error {
 					// Main context passed to components
-					common.MainCtx, common.MainCtxCancel = context.WithCancel(context.Background())
 
 					// create and setup the Autoconfig instance
-					common.LoadComponents(common.MainCtx, aggregator.GetSenderManager(), pkgconfig.Datadog.GetString("confd_path"))
+					common.LoadComponents(nil, workloadmeta.Component, nil, nil)
 					return nil
 				},
 			})
 		}),
-		logs.Bundle,
+		logs.Bundle(),
 	)
 }
 
@@ -82,6 +80,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			return fxutil.OneShot(logsAnalyze,
 				fx.Supply(cliParams),
 				fx.Supply(params),
+				fx.Supply(workloadmeta),
 				fx.Supply(command.GetDefaultCoreBundleParams(cliParams.GlobalParams)),
 				core.Bundle(),
 				fx.Supply(log.ForDaemon("LOGS", "log_file", params.DefaultLogFile)),
