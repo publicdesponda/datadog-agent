@@ -3,37 +3,42 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package start
+// Package agentlogsanalyze implements 'logs-analyze'.
+package agentlogsanalyze
 
 import (
-	"context"
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
 
-	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/command"
-	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
-	"github.com/DataDog/datadog-agent/comp/logs"
-	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
-	adScheduler "github.com/DataDog/datadog-agent/pkg/logs/schedulers/ad"
+	"github.com/DataDog/datadog-agent/pkg/api/util"
+	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+
+	"github.com/spf13/cobra"
 )
 
+// CliParams are the command-line arguments for this subcommand
 type CliParams struct {
 	*command.GlobalParams
-	confPath string
+
+	configFilePath string
+
+	logFilePath string
 }
 
-const (
-	// loggerName is the name of the dogstatsd logger
-	loggerName pkgconfig.LoggerName = "LOGS"
-)
+const defaultLogFile = "/var/log/datadog/logs-agent.log"
 
 // Commands returns a slice of subcommands for the 'agent' command.
 func Commands(globalParams *command.GlobalParams) []*cobra.Command {
@@ -42,88 +47,111 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "logs-analyze",
-		Short: "Print logs from the logs agent to stdout",
+		Use:   "stream-logs",
+		Short: "Stream the logs being processed by a running agent",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return fxutil.OneShot(logsAnalyze,
 				fx.Supply(cliParams),
 				fx.Supply(command.GetDefaultCoreBundleParams(cliParams.GlobalParams)),
 				core.Bundle(),
+				fx.Supply(logComponent.LogForDaemon(string(loggerName), "log_file", params.DefaultLogFile)),
 			)
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&cliParams.confPath, "cfgpath", "c", "", "path to directory containing datadog.yaml")
+	cmd.PersistentFlags().StringVarP(&cliParams.configFilePath, "cfgpath", "c", "", "path to directory containing datadog.yaml")
 
+	// TODO add log flag
 	return []*cobra.Command{cmd}
 }
 
-func getSharedFxOption() fx.Option {
-	return fx.Options(
-		config.Module,
-		logComponent.Module,
-
-		// TODO: (components) - some parts of the agent (such as the logs agent) implicitly depend on the global state
-		// set up by LoadComponents. In order for components to use lifecycle hooks that also depend on this global state, we
-		// have to ensure this code gets run first. Once the common package is made into a component, this can be removed.
-		fx.Invoke(func(lc fx.Lifecycle) {
-			lc.Append(fx.Hook{
-				OnStart: func(ctx context.Context) error {
-					// Main context passed to components
-					common.MainCtx, common.MainCtxCancel = context.WithCancel(context.Background())
-
-					// create and setup the Autoconfig instance
-					common.LoadComponents(common.MainCtx, aggregator.GetSenderManager(), pkgconfig.Datadog.GetString("confd_path"))
-					return nil
-				},
-			})
-		}),
-		logs.Bundle,
-	)
-}
-
-type Params struct {
-	DefaultLogFile string
-}
-
-func logsAnalyze(cliParams *CliParams, defaultConfPath string, defaultLogFile string, fct interface{}) error {
-	params := &Params{
-		DefaultLogFile: defaultLogFile,
-	}
-	return fxutil.OneShot(fct,
-		fx.Supply(cliParams),
-		fx.Supply(params),
-		fx.Supply(config.NewParams(
-			defaultConfPath,
-			config.WithConfFilePath(cliParams.confPath),
-			config.WithConfigMissingOK(true),
-			config.WithConfigName("agent")),
-		),
-		fx.Supply(log.ForDaemon(string(loggerName), "log_file", params.DefaultLogFile)),
-		getSharedFxOption(),
-	)
-}
-
-func start(cliParams *CliParams, config config.Component, log log.Component, params *Params, logsAgent util.optional[logsAgent.Component]) error {
-	// Main context passed to components
-	// ctx, cancel := context.WithCancel(context.Background())
-
-	// Set up check collector
-
-	if logsAgent, ok := logsAgent.Get(); ok {
-		// TODO: (components) - once adScheduler is a component, inject it into the logs agent.
-		logsAgent.AddScheduler(adScheduler.New(common.AC))
+//nolint:revive // TODO(AML) Fix revive linter
+func logsAnalyze(logComponent log.Component, config config.Component, cliParams *CliParams) error {
+	ipcAddress, err := pkgconfigsetup.GetIPCAddress(pkgconfigsetup.Datadog())
+	if err != nil {
+		return err
 	}
 
-	// load and run all configs in AD
-	common.AC.LoadAndRun(common.MainCtx)
+	if err != nil {
+		return err
+	}
 
-	// defer StopAgent(cancel, components)
+	urlstr := fmt.Sprintf("https://%v:%v/agent/stream-logs", ipcAddress, config.GetInt("cmd_port"))
 
-	stopCh := make(chan struct{})
-	// Block here until we receive a stop signal
-	<-stopCh
+	var f *os.File
+	var bufWriter *bufio.Writer
 
+	if cliParams.configFilePath != "" {
+		err = checkDirExists(cliParams.configFilePath)
+		if err != nil {
+			return fmt.Errorf("error creating directory for file %s: %v", cliParams.configFilePath, err)
+		}
+
+		f, bufWriter, err = openFileForWriting(cliParams.configFilePath)
+		if err != nil {
+			return fmt.Errorf("error opening file %s for writing: %v", cliParams.configFilePath, err)
+		}
+		defer func() {
+			err := bufWriter.Flush()
+			if err != nil {
+				fmt.Printf("Error flushing buffer for log stream: %v", err)
+			}
+			f.Close()
+		}()
+	}
+
+	return streamRequest(urlstr, body, cliParams.Duration, func(chunk []byte) {
+		if bufWriter != nil {
+			if _, err = bufWriter.Write(chunk); err != nil {
+				fmt.Printf("Error writing stream-logs to file %s: %v", cliParams.FilePath, err)
+			}
+		}
+	})
+}
+
+func streamRequest(url string, body []byte, duration time.Duration, onChunk func([]byte)) error {
+	var e error
+	c := util.GetClient(false)
+	if duration != 0 {
+		c.Timeout = duration
+	}
+	// Set session token
+	e = util.SetAuthToken(pkgconfigsetup.Datadog())
+	if e != nil {
+		return e
+	}
+
+	e = util.DoPostChunked(c, url, "application/json", bytes.NewBuffer(body), onChunk)
+
+	if e == io.EOF {
+		return nil
+	}
+	if e != nil {
+		fmt.Printf("Could not reach agent: %v \nMake sure the agent is running before requesting the logs and contact support if you continue having issues. \n", e)
+	}
+	return e
+}
+
+// openFileForWriting opens a file for writing
+func openFileForWriting(filePath string) (*os.File, *bufio.Writer, error) {
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error opening file %s: %v", filePath, err)
+	}
+	bufWriter := bufio.NewWriter(f) // default 4096 bytes buffer
+	return f, bufWriter, nil
+}
+
+// checkDirExists checks if the directory for the given path exists, if not then create it.
+func checkDirExists(path string) error {
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
 	return nil
 }
