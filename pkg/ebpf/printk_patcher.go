@@ -50,6 +50,23 @@ func patchPrintkNewline(m *manager.Manager) error {
 	return errors.Join(errs...)
 }
 
+func PatchPrintkNewline(collSpec *ebpf.CollectionSpec) error {
+	kernelVersion, err := kernel.HostVersion()
+	if err != nil {
+		return err // can't detect kernel version, don't patch
+	}
+	if kernelVersion < kernel.VersionCode(5, 9, 0) {
+		return nil // Do nothing in older kernels
+	}
+
+	var errs []error
+	for _, p := range collSpec.Programs {
+		_, err := patchPrintkInstructions(p)
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
+}
+
 // patchPrintkInstructions patches the instructions of a program to remove the newline character
 // It's separated from patchPrintkNewline so it can be tested independently, also so that we can
 // check how many patches are performed

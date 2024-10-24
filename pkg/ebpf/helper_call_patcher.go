@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
 )
 
@@ -56,23 +57,8 @@ func (h *helperCallRemover) BeforeInit(m *manager.Manager, _ *manager.Options) e
 		}
 
 		for _, p := range progs {
-			iter := p.Instructions.Iterate()
-
-			for iter.Next() {
-				ins := iter.Ins
-				if !ins.IsBuiltinCall() {
-					continue
-				}
-
-				for _, fn := range h.helpers {
-					if ins.Constant == int64(fn) {
-						*ins = replaceIns.WithMetadata(ins.Metadata)
-						break
-					}
-				}
-			}
+			RemoveHelperCalls(p, h.helpers...)
 		}
-
 		return nil
 	})
 
@@ -85,4 +71,22 @@ func (h *helperCallRemover) AfterInit(*manager.Manager, *manager.Options) error 
 
 func (h *helperCallRemover) String() string {
 	return fmt.Sprintf("HelperCallRemover[%+v]", h.helpers)
+}
+
+// RemoveHelperCalls removes the specified helper calls in the program
+func RemoveHelperCalls(p *ebpf.ProgramSpec, helpers ...asm.BuiltinFunc) {
+	iter := p.Instructions.Iterate()
+	for iter.Next() {
+		ins := iter.Ins
+		if !ins.IsBuiltinCall() {
+			continue
+		}
+
+		for _, fn := range helpers {
+			if ins.Constant == int64(fn) {
+				*ins = replaceIns.WithMetadata(ins.Metadata)
+				break
+			}
+		}
+	}
 }

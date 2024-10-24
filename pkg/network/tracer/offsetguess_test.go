@@ -123,9 +123,9 @@ func (o offsetT) String() string {
 		return "offset_ct_netns"
 	case offsetCtIno:
 		return "offset_ct_ino"
+	default:
+		return "unknown offset"
 	}
-
-	return "unknown offset"
 }
 
 func TestOffsetGuess(t *testing.T) {
@@ -215,14 +215,15 @@ func testOffsetGuess(t *testing.T) {
 	cts, err := offsetguess.RunOffsetGuessing(cfg, offsetBuf, func() (offsetguess.OffsetGuesser, error) {
 		return offsetguess.NewConntrackOffsetGuesser(cfg)
 	})
-	_consts = append(_consts, cts...)
+	for k, v := range cts {
+		_consts[k] = v
+	}
 	require.NoError(t, err, "guessed offsets: %+v", _consts)
 
 	consts := map[offsetT]uint64{}
-	for _, c := range _consts {
-		value := c.Value.(uint64)
-		t.Logf("Guessed offset %v with value %v", c.Name, value)
-		switch c.Name {
+	for name, value := range _consts {
+		t.Logf("Guessed offset %v with value %v", name, value)
+		switch name {
 		case "offset_saddr":
 			consts[offsetSaddr] = value
 		case "offset_daddr":

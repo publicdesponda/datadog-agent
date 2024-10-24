@@ -1835,6 +1835,7 @@ func (s *TracerSuite) TestShortWrite() {
 
 func (s *TracerSuite) TestKprobeAttachWithKprobeEvents() {
 	t := s.T()
+	t.Skip("cilium/ebpf doesn't support forcing usage of tracefs")
 	cfg := config.New()
 	skipOnEbpflessNotSupported(t, cfg)
 	cfg.AttachKprobesWithKprobeEventsABI = true

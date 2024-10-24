@@ -20,7 +20,7 @@ func (t *ErrorsTelemetryModifier) String() string {
 }
 
 // BeforeInit sets up the manager to handle eBPF telemetry.
-// It will patch the instructions of all the manager probes and `undefinedProbes` provided.
+// It will patch the instructions of all the manager probes provided.
 // Constants are replaced for map error and helper error keys with their respective values.
 func (t *ErrorsTelemetryModifier) BeforeInit(m *manager.Manager, opts *manager.Options) error {
 	return setupForTelemetry(m, opts, errorsTelemetry)

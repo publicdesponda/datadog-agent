@@ -31,7 +31,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/probe/ebpfcheck/model"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/attach"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 	ddmaps "github.com/DataDog/datadog-agent/pkg/ebpf/maps"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -50,11 +52,11 @@ const maxMapsTracked = 20
 // Probe is the eBPF side of the eBPF check
 type Probe struct {
 	statsFD               io.Closer
-	coll                  *ebpf.Collection
+	coll                  *loader.Collection
 	perfBufferMap         *ebpf.Map
 	ringBufferMap         *ebpf.Map
 	pidMap                *ebpf.Map
-	links                 []link.Link
+	links                 []attach.Link
 	mapBuffers            entryCountBuffers
 	entryCountMaxRestarts int
 
@@ -132,7 +134,7 @@ func startEBPFCheck(buf bytecode.AssetReader, _ ddebpf.KernelModuleBTFLoadFunc, 
 	}
 
 	p := Probe{nrcpus: nrcpus}
-	p.coll, err = ebpf.NewCollectionWithOptions(collSpec, ebpf.CollectionOptions{
+	p.coll, err = loader.NewCollectionWithOptions(collSpec, ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
 			KernelTypes: vmlinux,
 		},
@@ -149,13 +151,13 @@ func startEBPFCheck(buf bytecode.AssetReader, _ ddebpf.KernelModuleBTFLoadFunc, 
 	p.pidMap = p.coll.Maps["map_pids"]
 	ddebpf.AddNameMappingsCollection(p.coll, "ebpf_check")
 
-	if err := p.attach(collSpec); err != nil {
+	if err := p.attach(); err != nil {
 		return nil, err
 	}
 	return &p, nil
 }
 
-func (k *Probe) attach(collSpec *ebpf.CollectionSpec) (err error) {
+func (k *Probe) attach() (err error) {
 	defer func() {
 		// if anything fails, we need to close/detach everything
 		if err != nil {
@@ -163,51 +165,20 @@ func (k *Probe) attach(collSpec *ebpf.CollectionSpec) (err error) {
 		}
 	}()
 
-	for name, prog := range k.coll.Programs {
-		spec := collSpec.Programs[name]
-		switch prog.Type() {
-		case ebpf.Kprobe:
-			const kprobePrefix, kretprobePrefix = "kprobe/", "kretprobe/"
-			if strings.HasPrefix(spec.SectionName, kprobePrefix) {
-				attachPoint := spec.SectionName[len(kprobePrefix):]
-				l, err := link.Kprobe(attachPoint, prog, &link.KprobeOptions{
-					TraceFSPrefix: "ddebpfc",
-				})
-				if err != nil {
-					return fmt.Errorf("link kprobe %s to %s: %s", spec.Name, attachPoint, err)
-				}
-				k.links = append(k.links, l)
-			} else if strings.HasPrefix(spec.SectionName, kretprobePrefix) {
-				attachPoint := spec.SectionName[len(kretprobePrefix):]
-				l, err := link.Kretprobe(attachPoint, prog, &link.KprobeOptions{
-					TraceFSPrefix: "ddebpfc",
-				})
-				if err != nil {
-					return fmt.Errorf("link kretprobe %s to %s: %s", spec.Name, attachPoint, err)
-				}
-				k.links = append(k.links, l)
-			} else {
-				return fmt.Errorf("unknown section prefix: %s", spec.SectionName)
-			}
-		case ebpf.TracePoint:
-			const tracepointPrefix = "tracepoint/"
-			attachPoint := spec.SectionName[len(tracepointPrefix):]
-			parts := strings.Split(attachPoint, "/")
-			l, err := link.Tracepoint(parts[0], parts[1], prog, nil)
-			if err != nil {
-				return fmt.Errorf("link tracepoint %s to %s: %s", spec.Name, attachPoint, err)
-			}
-			k.links = append(k.links, l)
-		default:
-			return fmt.Errorf("unknown program %s type: %T", spec.Name, prog.Type())
-		}
+	defaultOpts := &link.KprobeOptions{TraceFSPrefix: "ddebpfc"}
+	for _, kp := range k.coll.Kprobes {
+		kp.Options = defaultOpts
+	}
+	k.links, err = attach.Collection(k.coll)
+	if err != nil {
+		return fmt.Errorf("attach: %s", err)
 	}
 	return nil
 }
 
 // Close releases all associated resources
 func (k *Probe) Close() {
-	ddebpf.RemoveNameMappingsCollection(k.coll)
+	ddebpf.RemoveNameMappingsCollection(k.coll.Collection)
 	for _, l := range k.links {
 		if err := l.Close(); err != nil {
 			log.Warnf("error unlinking program: %s", err)

@@ -12,8 +12,6 @@ import (
 
 	"github.com/cilium/ebpf/ringbuf"
 
-	manager "github.com/DataDog/ebpf-manager"
-
 	ddsync "github.com/DataDog/datadog-agent/pkg/util/sync"
 )
 
@@ -48,7 +46,7 @@ func NewRingBufferHandler(dataChannelSize int) *RingBufferHandler {
 }
 
 // RecordHandler is the callback intended to be used when configuring PerfMapOptions
-func (c *RingBufferHandler) RecordHandler(record *ringbuf.Record, _ *manager.RingBuffer, _ *manager.Manager) {
+func (c *RingBufferHandler) RecordHandler(record *ringbuf.Record) {
 	if c.closed {
 		return
 	}

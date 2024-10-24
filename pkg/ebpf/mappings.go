@@ -13,6 +13,8 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
+
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 )
 
 var mappingLock sync.RWMutex
@@ -64,7 +66,7 @@ func AddNameMappings(mgr *manager.Manager, module string) {
 }
 
 // AddNameMappingsCollection adds the full name mappings for ebpf maps in the collection
-func AddNameMappingsCollection(coll *ebpf.Collection, module string) {
+func AddNameMappingsCollection(coll *loader.Collection, module string) {
 	mappingLock.Lock()
 	defer mappingLock.Unlock()
 

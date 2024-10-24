@@ -740,7 +740,7 @@ func (t *tracerOffsetGuesser) flowi6EntryState() GuessWhat {
 // check that value against the expected value of the field, advancing the
 // offset and repeating the process until we find the value we expect. Then, we
 // guess the next field.
-func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEditor, error) {
+func (t *tracerOffsetGuesser) Guess(cfg *config.Config) (map[string]uint64, error) {
 	mp, err := maps.GetMap[uint64, TracerStatus](t.m, probes.TracerStatusMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find map %s: %s", probes.TracerStatusMap, err)
@@ -859,34 +859,34 @@ func newTracerStatus() *TracerStatus {
 	return status
 }
 
-func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
-	return []manager.ConstantEditor{
-		{Name: "offset_saddr", Value: t.status.Offset_saddr},
-		{Name: "offset_daddr", Value: t.status.Offset_daddr},
-		{Name: "offset_sport", Value: t.status.Offset_sport},
-		{Name: "offset_dport", Value: t.status.Offset_dport},
-		{Name: "offset_netns", Value: t.status.Offset_netns},
-		{Name: "offset_ino", Value: t.status.Offset_ino},
-		{Name: "offset_family", Value: t.status.Offset_family},
-		{Name: "offset_rtt", Value: t.status.Offset_rtt},
-		{Name: "offset_rtt_var", Value: t.status.Offset_rtt_var},
-		{Name: "offset_daddr_ipv6", Value: t.status.Offset_daddr_ipv6},
-		{Name: "offset_saddr_fl4", Value: t.status.Offset_saddr_fl4},
-		{Name: "offset_daddr_fl4", Value: t.status.Offset_daddr_fl4},
-		{Name: "offset_sport_fl4", Value: t.status.Offset_sport_fl4},
-		{Name: "offset_dport_fl4", Value: t.status.Offset_dport_fl4},
-		{Name: "fl4_offsets", Value: uint64(t.status.Fl4_offsets)},
-		{Name: "offset_saddr_fl6", Value: t.status.Offset_saddr_fl6},
-		{Name: "offset_daddr_fl6", Value: t.status.Offset_daddr_fl6},
-		{Name: "offset_sport_fl6", Value: t.status.Offset_sport_fl6},
-		{Name: "offset_dport_fl6", Value: t.status.Offset_dport_fl6},
-		{Name: "fl6_offsets", Value: uint64(t.status.Fl6_offsets)},
-		{Name: "offset_socket_sk", Value: t.status.Offset_socket_sk},
-		{Name: "offset_sk_buff_sock", Value: t.status.Offset_sk_buff_sock},
-		{Name: "offset_sk_buff_transport_header", Value: t.status.Offset_sk_buff_transport_header},
-		{Name: "offset_sk_buff_head", Value: t.status.Offset_sk_buff_head},
-		{Name: "tcpv6_enabled", Value: boolToUint64(t.guessTCPv6)},
-		{Name: "udpv6_enabled", Value: boolToUint64(t.guessUDPv6)},
+func (t *tracerOffsetGuesser) getConstantEditors() map[string]uint64 {
+	return map[string]uint64{
+		"offset_saddr":                    t.status.Offset_saddr,
+		"offset_daddr":                    t.status.Offset_daddr,
+		"offset_sport":                    t.status.Offset_sport,
+		"offset_dport":                    t.status.Offset_dport,
+		"offset_netns":                    t.status.Offset_netns,
+		"offset_ino":                      t.status.Offset_ino,
+		"offset_family":                   t.status.Offset_family,
+		"offset_rtt":                      t.status.Offset_rtt,
+		"offset_rtt_var":                  t.status.Offset_rtt_var,
+		"offset_daddr_ipv6":               t.status.Offset_daddr_ipv6,
+		"offset_saddr_fl4":                t.status.Offset_saddr_fl4,
+		"offset_daddr_fl4":                t.status.Offset_daddr_fl4,
+		"offset_sport_fl4":                t.status.Offset_sport_fl4,
+		"offset_dport_fl4":                t.status.Offset_dport_fl4,
+		"fl4_offsets":                     uint64(t.status.Fl4_offsets),
+		"offset_saddr_fl6":                t.status.Offset_saddr_fl6,
+		"offset_daddr_fl6":                t.status.Offset_daddr_fl6,
+		"offset_sport_fl6":                t.status.Offset_sport_fl6,
+		"offset_dport_fl6":                t.status.Offset_dport_fl6,
+		"fl6_offsets":                     uint64(t.status.Fl6_offsets),
+		"offset_socket_sk":                t.status.Offset_socket_sk,
+		"offset_sk_buff_sock":             t.status.Offset_sk_buff_sock,
+		"offset_sk_buff_transport_header": t.status.Offset_sk_buff_transport_header,
+		"offset_sk_buff_head":             t.status.Offset_sk_buff_head,
+		"tcpv6_enabled":                   boolToUint64(t.guessTCPv6),
+		"udpv6_enabled":                   boolToUint64(t.guessUDPv6),
 	}
 }
 
@@ -1152,11 +1152,11 @@ func newUDPServer(addr string) (string, func(), error) {
 var TracerOffsets tracerOffsets
 
 type tracerOffsets struct {
-	offsets []manager.ConstantEditor
+	offsets map[string]uint64
 	err     error
 }
 
-func (o *tracerOffsets) Offsets(cfg *config.Config) ([]manager.ConstantEditor, error) {
+func (o *tracerOffsets) Offsets(cfg *config.Config) (map[string]uint64, error) {
 	if o.err != nil {
 		return nil, o.err
 	}

@@ -10,9 +10,9 @@ package filter
 
 import (
 	"encoding/binary"
+	"io"
 	"runtime"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"golang.org/x/sys/unix"
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
@@ -23,24 +23,25 @@ type headlessSocketFilter struct {
 	fd int
 }
 
-func (h *headlessSocketFilter) Close() {
+func (h *headlessSocketFilter) Close() error {
 	if h.fd == -1 {
-		return
+		return nil
 	}
-	unix.Close(h.fd)
+	err := unix.Close(h.fd)
 	h.fd = -1
 	runtime.SetFinalizer(h, nil)
+	return err
 }
 
 // HeadlessSocketFilter creates a raw socket attached to the given socket filter.
 // The underlying raw socket isn't polled and the filter is not meant to accept any packets.
 // The purpose is to use this for pure eBPF packet inspection.
 // TODO: After the proof-of-concept we might want to replace the SOCKET_FILTER program by a TC classifier
-func HeadlessSocketFilter(cfg *config.Config, filter *manager.Probe) (closeFn func(), err error) {
+func HeadlessSocketFilter(cfg *config.Config) (io.Closer, int, error) {
 	hsf := &headlessSocketFilter{}
 	ns, err := cfg.GetRootNetNs()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer ns.Close()
 
@@ -49,15 +50,14 @@ func HeadlessSocketFilter(cfg *config.Config, filter *manager.Probe) (closeFn fu
 		if err != nil {
 			return err
 		}
-		filter.SocketFD = hsf.fd
 		runtime.SetFinalizer(hsf, (*headlessSocketFilter).Close)
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return func() { hsf.Close() }, nil
+	return hsf, hsf.fd, nil
 }
 
 func htons(a uint16) uint16 {

@@ -47,7 +47,7 @@ type Monitor struct {
 	processMonitor *monitor.ProcessMonitor
 
 	// termination
-	closeFilterFn func()
+	closeFilterFn func() error
 
 	lastUpdateTime *atomic.Int64
 }
@@ -84,10 +84,11 @@ func NewMonitor(c *config.Config, connectionProtocolMap *ebpf.Map) (m *Monitor, 
 	}
 	ddebpf.AddNameMappings(mgr.Manager.Manager, "usm_monitor")
 
-	closeFilterFn, err := filterpkg.HeadlessSocketFilter(c, filter)
+	closer, fd, err := filterpkg.HeadlessSocketFilter(c)
 	if err != nil {
 		return nil, fmt.Errorf("error enabling traffic inspection: %s", err)
 	}
+	filter.SocketFD = fd
 
 	processMonitor := monitor.GetProcessMonitor()
 
@@ -96,7 +97,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap *ebpf.Map) (m *Monitor, 
 	usmMonitor := &Monitor{
 		cfg:            c,
 		ebpfProgram:    mgr,
-		closeFilterFn:  closeFilterFn,
+		closeFilterFn:  closer.Close,
 		processMonitor: processMonitor,
 	}
 

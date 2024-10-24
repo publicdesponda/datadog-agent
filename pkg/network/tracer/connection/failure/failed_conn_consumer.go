@@ -12,9 +12,8 @@ import (
 	"sync"
 	"unsafe"
 
-	manager "github.com/DataDog/ebpf-manager"
-
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -40,11 +39,11 @@ type TCPFailedConnConsumer struct {
 }
 
 // NewFailedConnConsumer creates a new TCPFailedConnConsumer
-func NewFailedConnConsumer(eventHandler ddebpf.EventHandler, m *manager.Manager, maxFailedConnsBuffered uint32) *TCPFailedConnConsumer {
+func NewFailedConnConsumer(eventHandler ddebpf.EventHandler, coll *loader.Collection, maxFailedConnsBuffered uint32) *TCPFailedConnConsumer {
 	return &TCPFailedConnConsumer{
 		eventHandler: eventHandler,
 		closed:       make(chan struct{}),
-		FailedConns:  NewFailedConns(m, maxFailedConnsBuffered),
+		FailedConns:  NewFailedConns(coll, maxFailedConnsBuffered),
 	}
 }
 

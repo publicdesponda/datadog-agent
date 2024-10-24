@@ -311,12 +311,19 @@ func (e *ebpfProgram) initPrebuilt() error {
 	}
 	defer bc.Close()
 
-	var offsets []manager.ConstantEditor
+	var offsets map[string]uint64
 	if offsets, err = offsetguess.TracerOffsets.Offsets(e.cfg); err != nil {
 		return err
 	}
+	var editors []manager.ConstantEditor
+	for name, val := range offsets {
+		editors = append(editors, manager.ConstantEditor{
+			Name:  name,
+			Value: val,
+		})
+	}
 
-	return e.init(bc, manager.Options{ConstantEditors: offsets})
+	return e.init(bc, manager.Options{ConstantEditors: editors})
 }
 
 // getProtocolsForBuildMode returns 2 lists - supported and not-supported protocol lists.

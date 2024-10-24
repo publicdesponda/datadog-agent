@@ -84,14 +84,14 @@ func (c *conntrackOffsetGuesser) Probes(*config.Config) (map[probes.ProbeFuncNam
 	return p, nil
 }
 
-func (c *conntrackOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
-	return []manager.ConstantEditor{
-		{Name: "offset_ct_origin", Value: c.status.Offset_origin},
-		{Name: "offset_ct_reply", Value: c.status.Offset_reply},
-		{Name: "offset_ct_netns", Value: c.status.Offset_netns},
-		{Name: "offset_ct_ino", Value: c.status.Offset_ino},
-		{Name: "tcpv6_enabled", Value: c.tcpv6Enabled},
-		{Name: "udpv6_enabled", Value: c.udpv6Enabled},
+func (c *conntrackOffsetGuesser) getConstantEditors() map[string]uint64 {
+	return map[string]uint64{
+		"offset_ct_origin": c.status.Offset_origin,
+		"offset_ct_reply":  c.status.Offset_reply,
+		"offset_ct_netns":  c.status.Offset_netns,
+		"offset_ct_ino":    c.status.Offset_ino,
+		"tcpv6_enabled":    c.tcpv6Enabled,
+		"udpv6_enabled":    c.udpv6Enabled,
 	}
 }
 
@@ -206,7 +206,7 @@ func (c *conntrackOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) {
 	}
 }
 
-func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEditor, error) {
+func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) (map[string]uint64, error) {
 	mp, err := maps.GetMap[uint64, ConntrackStatus](c.m, probes.ConntrackStatusMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to find map %s: %s", probes.ConntrackStatusMap, err)
@@ -260,7 +260,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	}
 
 	for _, ns := range nss {
-		var consts []manager.ConstantEditor
+		var consts map[string]uint64
 
 		if consts, err = c.runOffsetGuessing(cfg, ns, mp); err == nil {
 			return consts, nil
@@ -270,7 +270,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	return nil, err
 }
 
-func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.NsHandle, mp *maps.GenericMap[uint64, ConntrackStatus]) ([]manager.ConstantEditor, error) {
+func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.NsHandle, mp *maps.GenericMap[uint64, ConntrackStatus]) (map[string]uint64, error) {
 	log.Debugf("running conntrack offset guessing with ns %s", ns)
 	eventGenerator, err := newConntrackEventGenerator(ns)
 	if err != nil {

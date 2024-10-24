@@ -11,8 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	manager "github.com/DataDog/ebpf-manager"
-
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/maps"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
@@ -86,8 +85,8 @@ func (p *perfBatchManager) GetPendingConns(buffer *network.ConnectionBuffer) {
 	p.extractor.CleanupExpiredState(time.Now())
 }
 
-func newConnBatchManager(mgr *manager.Manager, extractor *batchExtractor) (*perfBatchManager, error) {
-	connCloseMap, err := maps.GetMap[uint32, netebpf.Batch](mgr, probes.ConnCloseBatchMap)
+func newConnBatchManager(coll *loader.Collection, extractor *batchExtractor) (*perfBatchManager, error) {
+	connCloseMap, err := maps.GetCollectionMap[uint32, netebpf.Batch](coll, probes.ConnCloseBatchMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get map %s: %s", probes.ConnCloseBatchMap, err)
 	}

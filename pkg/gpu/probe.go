@@ -15,6 +15,7 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/DataDog/datadog-agent/comp/core/telemetry"
@@ -220,8 +221,10 @@ func (p *Probe) startEventConsumer() {
 	rb := &manager.RingBuffer{
 		Map: manager.Map{Name: cudaEventMap},
 		RingBufferOptions: manager.RingBufferOptions{
-			RecordHandler: handler.RecordHandler,
-			RecordGetter:  handler.RecordGetter,
+			RecordHandler: func(record *ringbuf.Record, _ *manager.RingBuffer, _ *manager.Manager) {
+				handler.RecordHandler(record)
+			},
+			RecordGetter: handler.RecordGetter,
 		},
 	}
 	p.mgr.RingBuffers = append(p.mgr.RingBuffers, rb)

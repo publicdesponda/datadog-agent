@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf/perf"
 	"golang.org/x/sys/unix"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
@@ -71,10 +72,14 @@ func NewEBPFProgram(c *ddebpf.Config) *EbpfProgram {
 		PerfMapOptions: manager.PerfMapOptions{
 			PerfRingBufferSize: 8 * os.Getpagesize(),
 			Watermark:          1,
-			RecordHandler:      perfHandler.RecordHandler,
-			LostHandler:        perfHandler.LostHandler,
-			RecordGetter:       perfHandler.RecordGetter,
-			TelemetryEnabled:   c.InternalTelemetryEnabled,
+			RecordHandler: func(record *perf.Record, _ *manager.PerfMap, _ *manager.Manager) {
+				perfHandler.RecordHandler(record)
+			},
+			LostHandler: func(CPU int, count uint64, _ *manager.PerfMap, _ *manager.Manager) {
+				perfHandler.LostHandler(CPU, count)
+			},
+			RecordGetter:     perfHandler.RecordGetter,
+			TelemetryEnabled: c.InternalTelemetryEnabled,
 		},
 	}
 	mgr := &manager.Manager{

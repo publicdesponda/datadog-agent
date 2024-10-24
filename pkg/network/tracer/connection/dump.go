@@ -14,20 +14,17 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/davecgh/go-spew/spew"
 
-	manager "github.com/DataDog/ebpf-manager"
-
 	ddebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/offsetguess"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-
-func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap *ebpf.Map) {
+func dumpMapsHandler(w io.Writer, mapName string, currentMap *ebpf.Map) {
 	switch mapName {
 
 	case "connectsock_ipv6": // maps/connectsock_ipv6 (BPF_MAP_TYPE_HASH), key C.__u64, value uintptr // C.void*
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'uintptr // C.void*'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'uintptr // C.void*'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value uintptr // C.void*
@@ -36,7 +33,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.TracerStatusMap: // maps/tracer_status (BPF_MAP_TYPE_HASH), key C.__u64, value tracerStatus
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'tracerStatus'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'tracerStatus'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value offsetguess.TracerStatus
@@ -45,7 +42,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.ConntrackStatusMap: // maps/conntrack_status (BPF_MAP_TYPE_HASH), key C.__u64, value conntrackStatus
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'conntrackStatus'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'conntrackStatus'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value offsetguess.ConntrackStatus
@@ -54,7 +51,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.ConntrackMap: // maps/conntrack (BPF_MAP_TYPE_HASH), key ConnTuple, value ConnTuple
-		io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'ConnTuple'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'ConnTuple'\n")
 		iter := currentMap.Iterate()
 		var key ddebpf.ConnTuple
 		var value ddebpf.ConnTuple
@@ -63,7 +60,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.ConntrackTelemetryMap: // maps/conntrack_telemetry (BPF_MAP_TYPE_ARRAY), key C.u32, value conntrackTelemetry
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.u32', value: 'conntrackTelemetry'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.u32', value: 'conntrackTelemetry'\n")
 		var zero uint64
 		telemetry := &ddebpf.ConntrackTelemetry{}
 		if err := currentMap.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(telemetry)); err != nil {
@@ -72,7 +69,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		spew.Fdump(w, telemetry)
 
 	case probes.ConnMap: // maps/conn_stats (BPF_MAP_TYPE_HASH), key ConnTuple, value ConnStatsWithTimestamp
-		io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'ConnStatsWithTimestamp'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'ConnStatsWithTimestamp'\n")
 		iter := currentMap.Iterate()
 		var key ddebpf.ConnTuple
 		var value ddebpf.ConnStats
@@ -81,7 +78,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.TCPStatsMap: // maps/tcp_stats (BPF_MAP_TYPE_HASH), key ConnTuple, value TCPStats
-		io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'TCPStats'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'ConnTuple', value: 'TCPStats'\n")
 		iter := currentMap.Iterate()
 		var key ddebpf.ConnTuple
 		var value ddebpf.TCPStats
@@ -90,8 +87,8 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.TCPOngoingConnectPid: // maps/tcp_ongoing_connect_pid (BPF_MAP_TYPE_HASH), key SkpConnTuple, value u64
-		io.WriteString(w, "Map: '"+mapName+"', key: 'SkpConnTuple', value: 'C.u64'\n")
-		io.WriteString(w, "This map is used to store the PID of the process that initiated the connection\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'SkpConnTuple', value: 'C.u64'\n")
+		_, _ = io.WriteString(w, "This map is used to store the PID of the process that initiated the connection\n")
 		totalSize := 0
 		info, _ := currentMap.Info()
 		spew.Fdump(w, info)
@@ -102,10 +99,10 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 			totalSize++
 			spew.Fdump(w, key.Tup, value)
 		}
-		io.WriteString(w, "Total entries: "+spew.Sdump(totalSize))
+		_, _ = io.WriteString(w, "Total entries: "+spew.Sdump(totalSize))
 
 	case probes.ConnCloseBatchMap: // maps/conn_close_batch (BPF_MAP_TYPE_HASH), key C.__u32, value batch
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u32', value: 'batch'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u32', value: 'batch'\n")
 		iter := currentMap.Iterate()
 		var key uint32
 		var value ddebpf.Batch
@@ -114,7 +111,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case "udp_recv_sock": // maps/udp_recv_sock (BPF_MAP_TYPE_HASH), key C.__u64, value C.udp_recv_sock_t
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.udp_recv_sock_t'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.udp_recv_sock_t'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value ddebpf.UDPRecvSock
@@ -123,7 +120,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case "udpv6_recv_sock": // maps/udpv6_recv_sock (BPF_MAP_TYPE_HASH), key C.__u64, value C.udp_recv_sock_t
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.udp_recv_sock_t'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.udp_recv_sock_t'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value ddebpf.UDPRecvSock
@@ -132,7 +129,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.PortBindingsMap: // maps/port_bindings (BPF_MAP_TYPE_HASH), key portBindingTuple, value C.__u8
-		io.WriteString(w, "Map: '"+mapName+"', key: 'portBindingTuple', value: 'C.__u8'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'portBindingTuple', value: 'C.__u8'\n")
 		iter := currentMap.Iterate()
 		var key ddebpf.PortBinding
 		var value uint8
@@ -141,7 +138,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.UDPPortBindingsMap: // maps/udp_port_bindings (BPF_MAP_TYPE_HASH), key portBindingTuple, value C.__u8
-		io.WriteString(w, "Map: '"+mapName+"', key: 'portBindingTuple', value: 'C.__u8'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'portBindingTuple', value: 'C.__u8'\n")
 		iter := currentMap.Iterate()
 		var key ddebpf.PortBinding
 		var value uint8
@@ -150,7 +147,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case "pending_bind": // maps/pending_bind (BPF_MAP_TYPE_HASH), key C.__u64, value C.bind_syscall_args_t
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.bind_syscall_args_t'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.__u64', value: 'C.bind_syscall_args_t'\n")
 		iter := currentMap.Iterate()
 		var key uint64
 		var value ddebpf.BindSyscallArgs
@@ -159,7 +156,7 @@ func dumpMapsHandler(w io.Writer, _ *manager.Manager, mapName string, currentMap
 		}
 
 	case probes.TelemetryMap: // maps/telemetry (BPF_MAP_TYPE_ARRAY), key C.u32, value kernelTelemetry
-		io.WriteString(w, "Map: '"+mapName+"', key: 'C.u32', value: 'kernelTelemetry'\n")
+		_, _ = io.WriteString(w, "Map: '"+mapName+"', key: 'C.u32', value: 'kernelTelemetry'\n")
 		var zero uint64
 		telemetry := &ddebpf.Telemetry{}
 		if err := currentMap.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(telemetry)); err != nil {

@@ -65,6 +65,7 @@ var conntrackerTelemetry = struct {
 	0,
 }
 
+// TODO convert conntracker from manager
 type ebpfConntracker struct {
 	m            *manager.Manager
 	ctMap        *maps.GenericMap[netebpf.ConntrackTuple, netebpf.ConntrackTuple]
@@ -496,8 +497,14 @@ func getPrebuiltConntracker(cfg *config.Config) (*manager.Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not guess offsets for ebpf conntracker: %w", err)
 	}
-
-	opts := manager.Options{ConstantEditors: constants}
+	var editors []manager.ConstantEditor
+	for name, val := range constants {
+		editors = append(editors, manager.ConstantEditor{
+			Name:  name,
+			Value: val,
+		})
+	}
+	opts := manager.Options{ConstantEditors: editors}
 	return getManager(cfg, buf, opts)
 }
 

@@ -87,9 +87,6 @@ func FlushBTF() {
 	}
 }
 
-// KernelModuleBTFLoadFunc is a function that accepts a kernel module name and returns the BTF for that kernel module.
-type KernelModuleBTFLoadFunc func(string) (*btf.Spec, error)
-
 type returnBTF struct {
 	vmlinux        *btf.Spec
 	moduleLoadFunc KernelModuleBTFLoadFunc

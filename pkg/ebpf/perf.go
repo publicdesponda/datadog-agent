@@ -12,8 +12,6 @@ import (
 
 	"github.com/cilium/ebpf/perf"
 
-	manager "github.com/DataDog/ebpf-manager"
-
 	ddsync "github.com/DataDog/datadog-agent/pkg/util/sync"
 )
 
@@ -45,7 +43,7 @@ func NewPerfHandler(dataChannelSize int) *PerfHandler {
 }
 
 // LostHandler is the callback intended to be used when configuring PerfMapOptions
-func (c *PerfHandler) LostHandler(_ int, lostCount uint64, _ *manager.PerfMap, _ *manager.Manager) {
+func (c *PerfHandler) LostHandler(_ int, lostCount uint64) {
 	if c.closed {
 		return
 	}
@@ -53,7 +51,7 @@ func (c *PerfHandler) LostHandler(_ int, lostCount uint64, _ *manager.PerfMap, _
 }
 
 // RecordHandler is the callback intended to be used when configuring PerfMapOptions
-func (c *PerfHandler) RecordHandler(record *perf.Record, _ *manager.PerfMap, _ *manager.Manager) {
+func (c *PerfHandler) RecordHandler(record *perf.Record) {
 	if c.closed {
 		return
 	}

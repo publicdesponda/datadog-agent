@@ -17,6 +17,8 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/features"
+	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/ringbuf"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
@@ -74,9 +76,13 @@ func setupPerfMap(proto string, m *manager.Manager) {
 			// desirable to have Watermark set to 1
 			Watermark: 1,
 
-			RecordHandler: handler.RecordHandler,
-			LostHandler:   handler.LostHandler,
-			RecordGetter:  handler.RecordGetter,
+			RecordHandler: func(record *perf.Record, _ *manager.PerfMap, _ *manager.Manager) {
+				handler.RecordHandler(record)
+			},
+			LostHandler: func(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
+				handler.LostHandler(CPU, count)
+			},
+			RecordGetter: handler.RecordGetter,
 		},
 	}
 	// The map appears as we list it in the Protocol struct.
@@ -96,8 +102,10 @@ func setupPerfRing(proto string, m *manager.Manager, o *manager.Options, numCPUs
 	rb := &manager.RingBuffer{
 		Map: manager.Map{Name: mapName},
 		RingBufferOptions: manager.RingBufferOptions{
-			RecordHandler: handler.RecordHandler,
-			RecordGetter:  handler.RecordGetter,
+			RecordHandler: func(record *ringbuf.Record, _ *manager.RingBuffer, _ *manager.Manager) {
+				handler.RecordHandler(record)
+			},
+			RecordGetter: handler.RecordGetter,
 		},
 	}
 

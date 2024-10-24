@@ -9,142 +9,90 @@
 package util
 
 import (
-	"math"
+	"fmt"
+	"math/bits"
 	"os"
 
-	manager "github.com/DataDog/ebpf-manager"
 	cebpf "github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/asm"
 
-	"github.com/DataDog/datadog-agent/pkg/ebpf"
-	ebpftelemetry "github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/constant"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// toPowerOf2 converts a number to its nearest power of 2
-func toPowerOf2(x int) int {
-	log2 := math.Log2(float64(x))
-	return int(math.Pow(2, math.Round(log2)))
+// round x up to the nearest power of 2
+func roundUpNearestPow2(x uint32) uint32 {
+	return uint32(1) << bits.Len32(x-1)
 }
 
-// computeDefaultClosedConnRingBufferSize is the default buffer size of the ring buffer for closed connection events.
-// Must be a power of 2 and a multiple of the page size
-func computeDefaultClosedConnRingBufferSize() int {
+// EnableRingBuffers sets up the ring buffer for closed connection events
+func EnableRingBuffers(collSpec *cebpf.CollectionSpec) {
 	numCPUs, err := cebpf.PossibleCPU()
 	if err != nil {
 		numCPUs = 1
 	}
-	return 8 * toPowerOf2(numCPUs) * os.Getpagesize()
+	ringBufSize := 8 * roundUpNearestPow2(uint32(numCPUs)) * uint32(os.Getpagesize())
+
+	connMapSpec := collSpec.Maps[probes.ConnCloseEventMap]
+	connMapSpec.Type = cebpf.RingBuf
+	connMapSpec.MaxEntries = ringBufSize
+	connMapSpec.KeySize = 0
+	connMapSpec.ValueSize = 0
+
+	failedMapSpec := collSpec.Maps[probes.FailedConnEventMap]
+	failedMapSpec.Type = cebpf.RingBuf
+	failedMapSpec.MaxEntries = ringBufSize
+	failedMapSpec.KeySize = 0
+	failedMapSpec.ValueSize = 0
 }
 
-// computeDefaultFailedConnectionsRingBufferSize is the default buffer size of the ring buffer for closed connection events.
-// Must be a power of 2 and a multiple of the page size
-func computeDefaultFailedConnectionsRingBufferSize() int {
-	numCPUs, err := cebpf.PossibleCPU()
-	if err != nil {
-		numCPUs = 1
+// EditCommonMaps sets up common map attributes for all tracers
+func EditCommonMaps(collSpec *cebpf.CollectionSpec, config *config.Config) error {
+	mapNames := []string{
+		probes.ConnMap,
+		probes.TCPStatsMap,
+		probes.TCPRetransmitsMap,
+		probes.PortBindingsMap,
+		probes.UDPPortBindingsMap,
+		probes.ConnectionProtocolMap,
+		probes.ConnectionTupleToSocketSKBConnMap,
+		probes.TCPOngoingConnectPid,
 	}
-	return 8 * toPowerOf2(numCPUs) * os.Getpagesize()
-}
-
-// computeDefaultClosedConnPerfBufferSize is the default buffer size of the perf buffer for closed connection events.
-// Must be a multiple of the page size
-func computeDefaultClosedConnPerfBufferSize() int {
-	return 8 * os.Getpagesize()
-}
-
-// computeDefaultFailedConnPerfBufferSize is the default buffer size of the perf buffer for closed connection events.
-// Must be a multiple of the page size
-func computeDefaultFailedConnPerfBufferSize() int {
-	return 8 * os.Getpagesize()
-}
-
-// EnableRingbuffersViaMapEditor sets up the ring buffer for closed connection events via a map editor
-func EnableRingbuffersViaMapEditor(mgrOpts *manager.Options) {
-	mgrOpts.MapSpecEditors[probes.ConnCloseEventMap] = manager.MapSpecEditor{
-		Type:       cebpf.RingBuf,
-		MaxEntries: uint32(computeDefaultClosedConnRingBufferSize()),
-		KeySize:    0,
-		ValueSize:  0,
-		EditorFlag: manager.EditType | manager.EditMaxEntries | manager.EditKeyValue,
-	}
-	mgrOpts.MapSpecEditors[probes.FailedConnEventMap] = manager.MapSpecEditor{
-		Type:       cebpf.RingBuf,
-		MaxEntries: uint32(computeDefaultFailedConnectionsRingBufferSize()),
-		KeySize:    0,
-		ValueSize:  0,
-		EditorFlag: manager.EditType | manager.EditMaxEntries | manager.EditKeyValue,
-	}
-}
-
-// SetupHandler sets up the closed connection event handler
-func SetupHandler(eventHandler ebpf.EventHandler, mgr *ebpf.Manager, cfg *config.Config, perfSize int, mapName probes.BPFMapName) {
-	switch handler := eventHandler.(type) {
-	case *ebpf.RingBufferHandler:
-		log.Infof("Setting up connection handler for map %v with ring buffer", mapName)
-		rb := &manager.RingBuffer{
-			Map: manager.Map{Name: mapName},
-			RingBufferOptions: manager.RingBufferOptions{
-				RecordGetter:     handler.RecordGetter,
-				RecordHandler:    handler.RecordHandler,
-				TelemetryEnabled: cfg.InternalTelemetryEnabled,
-			},
+	for _, name := range mapNames {
+		m, ok := collSpec.Maps[name]
+		if !ok {
+			return fmt.Errorf("map %s not found", name)
 		}
-		mgr.RingBuffers = append(mgr.RingBuffers, rb)
-		ebpftelemetry.ReportRingBufferTelemetry(rb)
-	case *ebpf.PerfHandler:
-		log.Infof("Setting up connection handler for map %v with perf buffer", mapName)
-		pm := &manager.PerfMap{
-			Map: manager.Map{Name: mapName},
-			PerfMapOptions: manager.PerfMapOptions{
-				PerfRingBufferSize: perfSize,
-				Watermark:          1,
-				RecordHandler:      handler.RecordHandler,
-				LostHandler:        handler.LostHandler,
-				RecordGetter:       handler.RecordGetter,
-				TelemetryEnabled:   cfg.InternalTelemetryEnabled,
-			},
-		}
-		mgr.PerfMaps = append(mgr.PerfMaps, pm)
-		ebpftelemetry.ReportPerfMapTelemetry(pm)
-		helperCallRemover := ebpf.NewHelperCallRemover(asm.FnRingbufOutput)
-		err := helperCallRemover.BeforeInit(mgr.Manager, nil)
-		if err != nil {
-			log.Error("Failed to remove helper calls from eBPF programs: ", err)
-		}
-	default:
-		log.Errorf("Failed to set up connection handler for map %v: unknown event handler type", mapName)
+		m.MaxEntries = config.MaxTrackedConnections
 	}
+	return nil
 }
 
-// SetupFailedConnHandler sets up the closed connection event handler
-func SetupFailedConnHandler(connCloseEventHandler ebpf.EventHandler, mgr *ebpf.Manager, cfg *config.Config) {
-	SetupHandler(connCloseEventHandler, mgr, cfg, computeDefaultFailedConnPerfBufferSize(), probes.FailedConnEventMap)
-}
-
-// SetupClosedConnHandler sets up the closed connection event handler
-func SetupClosedConnHandler(connCloseEventHandler ebpf.EventHandler, mgr *ebpf.Manager, cfg *config.Config) {
-	SetupHandler(connCloseEventHandler, mgr, cfg, computeDefaultClosedConnPerfBufferSize(), probes.ConnCloseEventMap)
-}
-
-// AddBoolConst modifies the options to include a constant editor for a boolean value
-func AddBoolConst(options *manager.Options, name string, flag bool) {
-	val := uint64(1)
-	if !flag {
-		val = uint64(0)
+func boolToUint64(b bool) uint64 {
+	if b {
+		return 1
 	}
+	return 0
+}
 
-	options.ConstantEditors = append(options.ConstantEditors,
-		manager.ConstantEditor{
-			Name:  name,
-			Value: val,
-		},
-	)
+// EditCommonConstants sets up common constants for all tracers
+func EditCommonConstants(collSpec *cebpf.CollectionSpec, cfg *config.Config) error {
+	begin, end := network.EphemeralRange()
+	consts := map[string]uint64{
+		"ephemeral_range_begin": uint64(begin),
+		"ephemeral_range_end":   uint64(end),
+		"tcpv6_enabled":         boolToUint64(cfg.CollectTCPv6Conns),
+		"udpv6_enabled":         boolToUint64(cfg.CollectUDPv6Conns),
+	}
+	for name, val := range consts {
+		if err := constant.EditAll(collSpec, name, val); err != nil {
+			return fmt.Errorf("edit constant %s: %s", name, err)
+		}
+	}
+	return nil
 }
 
 // ConnStatsToTuple converts a ConnectionStats to a ConnTuple

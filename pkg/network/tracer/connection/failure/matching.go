@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"golang.org/x/sys/unix"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
@@ -68,13 +68,13 @@ type FailedConns struct {
 }
 
 // NewFailedConns returns a new FailedConns struct
-func NewFailedConns(m *manager.Manager, maxFailedConnsBuffered uint32) *FailedConns {
+func NewFailedConns(coll *loader.Collection, maxFailedConnsBuffered uint32) *FailedConns {
 	fc := &FailedConns{
 		FailedConnMap:       make(map[ebpf.ConnTuple]*FailedConnStats),
 		maxFailuresBuffered: maxFailedConnsBuffered,
 		failureTuple:        &ebpf.ConnTuple{},
 	}
-	fc.setupMapCleaner(m)
+	fc.setupMapCleaner(coll)
 	return fc
 }
 
@@ -148,10 +148,10 @@ func (fc *FailedConns) RemoveExpired() {
 	failureTelemetry.failedConnOrphans.Add(float64(removed))
 }
 
-func (fc *FailedConns) setupMapCleaner(m *manager.Manager) {
-	connCloseFlushMap, _, err := m.GetMap(probes.ConnCloseFlushed)
-	if err != nil {
-		log.Errorf("error getting %v map: %s", probes.ConnCloseFlushed, err)
+func (fc *FailedConns) setupMapCleaner(coll *loader.Collection) {
+	connCloseFlushMap, ok := coll.Maps[probes.ConnCloseFlushed]
+	if !ok {
+		log.Errorf("map %s not found", probes.ConnCloseFlushed)
 		return
 	}
 	mapCleaner, err := ddebpf.NewMapCleaner[ebpf.ConnTuple, int64](connCloseFlushMap, 1024)

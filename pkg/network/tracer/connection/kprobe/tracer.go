@@ -10,13 +10,18 @@ package kprobe
 import (
 	"errors"
 	"fmt"
+	"io"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/asm"
+	"github.com/cilium/ebpf/btf"
+	"github.com/cilium/ebpf/rlimit"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
-	ebpftelemetry "github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/constant"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
@@ -26,8 +31,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
-
-const probeUID = "net"
 
 type TracerType int
 
@@ -42,41 +45,6 @@ var (
 	// was added to socket filters in 4.11.0:
 	// - 2492d3b867043f6880708d095a7a5d65debcfc32
 	classificationMinimumKernel = kernel.VersionCode(4, 11, 0)
-
-	protocolClassificationTailCalls = []manager.TailCallRoute{
-		{
-			ProgArrayName: probes.ClassificationProgsMap,
-			Key:           netebpf.ClassificationQueues,
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.ProtocolClassifierQueuesSocketFilter,
-				UID:          probeUID,
-			},
-		},
-		{
-			ProgArrayName: probes.ClassificationProgsMap,
-			Key:           netebpf.ClassificationDBs,
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.ProtocolClassifierDBsSocketFilter,
-				UID:          probeUID,
-			},
-		},
-		{
-			ProgArrayName: probes.ClassificationProgsMap,
-			Key:           netebpf.ClassificationGRPC,
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.ProtocolClassifierGRPCSocketFilter,
-				UID:          probeUID,
-			},
-		},
-		{
-			ProgArrayName: probes.TCPCloseProgsMap,
-			Key:           0,
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.TCPCloseFlushReturn,
-				UID:          probeUID,
-			},
-		},
-	}
 
 	// these primarily exist for mocking out in tests
 	coreTracerLoader          = loadCORETracer
@@ -108,32 +76,23 @@ func ClassificationSupported(config *config.Config) bool {
 }
 
 // LoadTracer loads the co-re/prebuilt/runtime compiled network tracer, depending on config
-func LoadTracer(cfg *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), TracerType, error) {
-	kprobeAttachMethod := manager.AttachKprobeWithPerfEventOpen
-	if cfg.AttachKprobesWithKprobeEventsABI {
-		kprobeAttachMethod = manager.AttachKprobeWithKprobeEvents
-	}
-
-	mgrOpts.DefaultKprobeAttachMethod = kprobeAttachMethod
-
+func LoadTracer(cfg *config.Config) (*loader.Collection, func() error, TracerType, error) {
 	if cfg.EnableCORE {
 		err := isCORETracerSupported()
 		if err != nil && !errors.Is(err, errCORETracerNotSupported) {
 			return nil, nil, TracerTypeCORE, fmt.Errorf("error determining if CO-RE tracer is supported: %w", err)
 		}
 
-		var m *manager.Manager
-		var closeFn func()
+		var coll *loader.Collection
+		var closeFn func() error
 		if err == nil {
-			m, closeFn, err = coreTracerLoader(cfg, mgrOpts, connCloseEventHandler, failedConnsHandler)
+			coll, closeFn, err = coreTracerLoader(cfg)
 			// if it is a verifier error, bail always regardless of
 			// whether a fallback is enabled in config
 			var ve *ebpf.VerifierError
 			if err == nil || errors.As(err, &ve) {
-				return m, closeFn, TracerTypeCORE, err
+				return coll, closeFn, TracerTypeCORE, err
 			}
-			// do not use offset guessing constants with runtime compilation
-			mgrOpts.ConstantEditors = nil
 		}
 
 		if cfg.EnableRuntimeCompiler && cfg.AllowRuntimeCompiledFallback {
@@ -146,9 +105,9 @@ func LoadTracer(cfg *config.Config, mgrOpts manager.Options, connCloseEventHandl
 	}
 
 	if cfg.EnableRuntimeCompiler && (!cfg.EnableCORE || cfg.AllowRuntimeCompiledFallback) {
-		m, closeFn, err := rcTracerLoader(cfg, mgrOpts, connCloseEventHandler, failedConnsHandler)
+		coll, closeFn, err := rcTracerLoader(cfg)
 		if err == nil {
-			return m, closeFn, TracerTypeRuntimeCompiled, err
+			return coll, closeFn, TracerTypeRuntimeCompiled, err
 		}
 
 		if !cfg.AllowPrecompiledFallback {
@@ -163,146 +122,213 @@ func LoadTracer(cfg *config.Config, mgrOpts manager.Options, connCloseEventHandl
 		return nil, nil, TracerTypePrebuilt, fmt.Errorf("error loading prebuilt tracer: error guessing offsets: %s", err)
 	}
 
-	mgrOpts.ConstantEditors = append(mgrOpts.ConstantEditors, offsets...)
-
-	m, closeFn, err := prebuiltTracerLoader(cfg, mgrOpts, connCloseEventHandler)
-	return m, closeFn, TracerTypePrebuilt, err
+	coll, closeFn, err := prebuiltTracerLoader(cfg, offsets)
+	return coll, closeFn, TracerTypePrebuilt, err
 }
 
-func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer bool, config *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), error) {
-	m := ddebpf.NewManagerWithDefault(&manager.Manager{}, &ebpftelemetry.ErrorsTelemetryModifier{})
-	if err := initManager(m, connCloseEventHandler, failedConnsHandler, runtimeTracer, config); err != nil {
-		return nil, nil, fmt.Errorf("could not initialize manager: %w", err)
-	}
-	ringbufferEnabled := false
-	switch connCloseEventHandler.(type) {
-	case *ddebpf.RingBufferHandler:
-		ringbufferEnabled = true
-	}
-	util.AddBoolConst(&mgrOpts, "ringbuffers_enabled", ringbufferEnabled)
-	if ringbufferEnabled {
-		util.EnableRingbuffersViaMapEditor(&mgrOpts)
-	}
+type tracerLoadOptions struct {
+	runtimeTracer bool
+	coreTracer    bool
+	modLoadFunc   ddebpf.KernelModuleBTFLoadFunc
+	vmlinux       *btf.Spec
+	offsets       map[string]uint64
+}
 
-	var undefinedProbes []manager.ProbeIdentificationPair
-
-	var closeProtocolClassifierSocketFilterFn func()
-	classificationSupported := ClassificationSupported(config)
-	util.AddBoolConst(&mgrOpts, "protocol_classification_enabled", classificationSupported)
-	var tailCallsIdentifiersSet map[manager.ProbeIdentificationPair]struct{}
-
-	if classificationSupported {
-		tailCallsIdentifiersSet = make(map[manager.ProbeIdentificationPair]struct{}, len(protocolClassificationTailCalls))
-		for _, tailCall := range protocolClassificationTailCalls {
-			tailCallsIdentifiersSet[tailCall.ProbeIdentificationPair] = struct{}{}
-		}
-		socketFilterProbe, _ := m.GetProbe(manager.ProbeIdentificationPair{
-			EBPFFuncName: probes.ProtocolClassifierEntrySocketFilter,
-			UID:          probeUID,
-		})
-		if socketFilterProbe == nil {
-			return nil, nil, fmt.Errorf("error retrieving protocol classifier socket filter")
-		}
-
-		var err error
-		closeProtocolClassifierSocketFilterFn, err = filter.HeadlessSocketFilter(config, socketFilterProbe)
+func loadTracerFromAsset(buf bytecode.AssetReader, config *config.Config, opts tracerLoadOptions) (coll *loader.Collection, closeFn func() error, err error) {
+	closeOnError := func(c io.Closer) {
 		if err != nil {
-			return nil, nil, fmt.Errorf("error enabling protocol classifier: %w", err)
+			_ = c.Close()
 		}
+	}
 
-		//nolint:ineffassign,staticcheck // TODO(NET) Fix ineffassign linter // TODO(NET) Fix staticcheck linter
-		undefinedProbes = append(undefinedProbes, protocolClassificationTailCalls[0].ProbeIdentificationPair)
-		mgrOpts.TailCallRouter = append(mgrOpts.TailCallRouter, protocolClassificationTailCalls...)
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return nil, nil, err
+	}
+
+	collSpec, err := ebpf.LoadCollectionSpecFromReader(buf)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load collection spec: %s", err)
+	}
+	if opts.runtimeTracer {
+		// the runtime compiled tracer has no need for separate probes targeting specific kernel versions, since it can
+		// do that with #ifdefs inline. Thus, the following probes should only be declared as existing in the prebuilt
+		// tracer.
+		delete(collSpec.Programs, probes.TCPRetransmitPre470)
+		delete(collSpec.Programs, probes.IPMakeSkbPre4180)
+		delete(collSpec.Programs, probes.IP6MakeSkbPre470)
+		delete(collSpec.Programs, probes.IP6MakeSkbPre5180)
+		delete(collSpec.Programs, probes.UDPRecvMsgPre5190)
+		delete(collSpec.Programs, probes.UDPv6RecvMsgPre5190)
+		delete(collSpec.Programs, probes.UDPRecvMsgPre470)
+		delete(collSpec.Programs, probes.UDPv6RecvMsgPre470)
+		delete(collSpec.Programs, probes.UDPRecvMsgPre410)
+		delete(collSpec.Programs, probes.UDPv6RecvMsgPre410)
+		delete(collSpec.Programs, probes.UDPRecvMsgReturnPre470)
+		delete(collSpec.Programs, probes.UDPv6RecvMsgReturnPre470)
+		delete(collSpec.Programs, probes.TCPSendMsgPre410)
+		delete(collSpec.Programs, probes.TCPRecvMsgPre410)
+		delete(collSpec.Programs, probes.TCPRecvMsgPre5190)
+	}
+
+	// Use the config to determine what kernel probes should be enabled
+	enabledProbes, err := enabledProbes(config, opts.runtimeTracer, opts.coreTracer)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid probe configuration: %v", err)
+	}
+	// exclude all non-enabled probes to ensure we don't run into problems with unsupported probe types
+	for funcName := range collSpec.Programs {
+		if _, enabled := enabledProbes[funcName]; !enabled {
+			delete(collSpec.Programs, funcName)
+		}
+	}
+
+	if config.RingBufferSupportedNPM() {
+		util.EnableRingBuffers(collSpec)
 	} else {
+		for _, p := range collSpec.Programs {
+			ddebpf.RemoveHelperCalls(p, asm.FnRingbufOutput)
+		}
+	}
+
+	classificationSupported := ClassificationSupported(config)
+	if !classificationSupported {
 		// Kernels < 4.7.0 do not know about the per-cpu array map used
 		// in classification, preventing the program to load even though
 		// we won't use it. We change the type to a simple array map to
 		// circumvent that.
 		for _, mapName := range []string{probes.ProtocolClassificationBufMap, probes.KafkaClientIDBufMap, probes.KafkaTopicNameBufMap} {
-			mgrOpts.MapSpecEditors[mapName] = manager.MapSpecEditor{
-				Type:       ebpf.Array,
-				EditorFlag: manager.EditType,
-			}
-		}
-	}
-
-	if config.FailedConnectionsSupported() {
-		util.AddBoolConst(&mgrOpts, "tcp_failed_connections_enabled", true)
-	}
-
-	// Use the config to determine what kernel probes should be enabled
-	enabledProbes, err := enabledProbes(config, runtimeTracer, coreTracer)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid probe configuration: %v", err)
-	}
-
-	// exclude all non-enabled probes to ensure we don't run into problems with unsupported probe types
-	for _, p := range m.Probes {
-		if _, enabled := enabledProbes[p.EBPFFuncName]; !enabled {
-			mgrOpts.ExcludedFunctions = append(mgrOpts.ExcludedFunctions, p.EBPFFuncName)
+			collSpec.Maps[mapName].Type = ebpf.Array
 		}
 	}
 
 	_, udpSendPageEnabled := enabledProbes[probes.UDPSendPage]
-	util.AddBoolConst(&mgrOpts, "udp_send_page_enabled", udpSendPageEnabled)
-
-	for funcName := range enabledProbes {
-		probeIdentifier := manager.ProbeIdentificationPair{
-			EBPFFuncName: funcName,
-			UID:          probeUID,
+	boolConstants := map[string]bool{
+		"protocol_classification_enabled": classificationSupported,
+		"tcp_failed_connections_enabled":  config.FailedConnectionsSupported(),
+		"udp_send_page_enabled":           udpSendPageEnabled,
+		"ringbuffers_enabled":             config.RingBufferSupportedNPM(),
+	}
+	for name, val := range boolConstants {
+		intVal := uint64(0)
+		if val {
+			intVal = 1
 		}
-		if _, ok := tailCallsIdentifiersSet[probeIdentifier]; ok {
-			// tail calls should be enabled (a.k.a. not excluded) but not activated.
-			continue
+		if err := constant.EditAll(collSpec, name, intVal); err != nil {
+			return nil, nil, fmt.Errorf("editing constant: %s", err)
 		}
-		mgrOpts.ActivatedProbes = append(
-			mgrOpts.ActivatedProbes,
-			&manager.ProbeSelector{
-				ProbeIdentificationPair: probeIdentifier,
-			})
+	}
+	for name, val := range opts.offsets {
+		if err := constant.EditAll(collSpec, name, val); err != nil {
+			return nil, nil, fmt.Errorf("editing offset constant: %s", err)
+		}
 	}
 
-	if err := m.InitWithOptions(buf, &mgrOpts); err != nil {
-		return nil, nil, fmt.Errorf("failed to init ebpf manager: %w", err)
+	if err := util.EditCommonMaps(collSpec, config); err != nil {
+		return nil, nil, fmt.Errorf("edit common maps: %s", err)
+	}
+	if err := util.EditCommonConstants(collSpec, config); err != nil {
+		return nil, nil, fmt.Errorf("edit common constants: %s", err)
 	}
 
-	return m.Manager, closeProtocolClassifierSocketFilterFn, nil
+	progOpts := ebpf.ProgramOptions{
+		KernelTypes: opts.vmlinux,
+	}
+	if err := ddebpf.LoadKernelModuleBTF(collSpec, &progOpts, opts.modLoadFunc); err != nil {
+		return nil, nil, fmt.Errorf("loading kernel module BTF: %s", err)
+	}
+	if err := ddebpf.PatchPrintkNewline(collSpec); err != nil {
+		return nil, nil, fmt.Errorf("patch printk newline: %w", err)
+	}
+	collOpts := ebpf.CollectionOptions{Programs: progOpts}
+	if err := telemetry.SetupErrorsTelemetry(collSpec, &collOpts); err != nil {
+		return nil, nil, fmt.Errorf("setup errors telemetry: %w", err)
+	}
+	coll, err = loader.NewCollectionWithOptions(collSpec, collOpts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load collection: %w", err)
+	}
+	defer closeOnError(coll)
+
+	if err := telemetry.PostLoadSetup(coll); err != nil {
+		return nil, nil, err
+	}
+
+	if classificationSupported {
+		tailCalls := map[string]map[uint32]string{
+			probes.ClassificationProgsMap: {
+				netebpf.ClassificationQueues: probes.ProtocolClassifierQueuesSocketFilter,
+				netebpf.ClassificationDBs:    probes.ProtocolClassifierDBsSocketFilter,
+				netebpf.ClassificationGRPC:   probes.ProtocolClassifierGRPCSocketFilter,
+			},
+			probes.TCPCloseProgsMap: {
+				0: probes.TCPCloseFlushReturn,
+			},
+		}
+		for mapName, routing := range tailCalls {
+			for key, progName := range routing {
+				if err := coll.SetTailCall(mapName, key, progName); err != nil {
+					return nil, nil, fmt.Errorf("tail call set: %s", err)
+				}
+			}
+		}
+
+		// ensure these programs are not attached
+		// TODO should there be a different way to prevent attach?
+		delete(coll.SocketFilters, probes.ProtocolClassifierQueuesSocketFilter)
+		delete(coll.SocketFilters, probes.ProtocolClassifierDBsSocketFilter)
+		delete(coll.SocketFilters, probes.ProtocolClassifierGRPCSocketFilter)
+		delete(coll.Kprobes, probes.TCPCloseFlushReturn)
+
+		socketFilterProbe, _ := coll.SocketFilters[probes.ProtocolClassifierEntrySocketFilter]
+		if socketFilterProbe == nil {
+			return nil, nil, fmt.Errorf("protocol classifier socket filter %q not found", probes.ProtocolClassifierEntrySocketFilter)
+		}
+		// TODO should this be during attach phase, since it isn't needed until then?
+		closer, socketFD, err := filter.HeadlessSocketFilter(config)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create protocol classifier socket: %w", err)
+		}
+		socketFilterProbe.FD = socketFD
+		return coll, closer.Close, nil
+	}
+	return coll, nil, nil
 }
 
-func loadCORETracer(config *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), error) {
-	var m *manager.Manager
-	var closeFn func()
+func loadCORETracer(config *config.Config) (*loader.Collection, func() error, error) {
+	var coll *loader.Collection
+	var closeFn func() error
 	var err error
-	err = ddebpf.LoadCOREAsset(netebpf.ModuleFileName("tracer", config.BPFDebug), func(ar bytecode.AssetReader, o manager.Options) error {
-		o.RLimit = mgrOpts.RLimit
-		o.MapSpecEditors = mgrOpts.MapSpecEditors
-		o.ConstantEditors = mgrOpts.ConstantEditors
-		o.DefaultKprobeAttachMethod = mgrOpts.DefaultKprobeAttachMethod
-		o.DefaultKProbeMaxActive = mgrOpts.DefaultKProbeMaxActive
-		o.BypassEnabled = mgrOpts.BypassEnabled
-		m, closeFn, err = tracerLoaderFromAsset(ar, false, true, config, o, connCloseEventHandler, failedConnsHandler)
+	err = ddebpf.LoadCORENoManagerAsset(netebpf.ModuleFileName("tracer", config.BPFDebug), func(ar bytecode.AssetReader, modLoadFunc ddebpf.KernelModuleBTFLoadFunc, vmlinux *btf.Spec) error {
+		opts := tracerLoadOptions{
+			coreTracer:  true,
+			modLoadFunc: modLoadFunc,
+			vmlinux:     vmlinux,
+		}
+		coll, closeFn, err = tracerLoaderFromAsset(ar, config, opts)
 		return err
 	})
-
-	return m, closeFn, err
+	return coll, closeFn, err
 }
 
-func loadRuntimeCompiledTracer(config *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), error) {
+func loadRuntimeCompiledTracer(config *config.Config) (*loader.Collection, func() error, error) {
 	buf, err := getRuntimeCompiledTracer(config)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
-	return tracerLoaderFromAsset(buf, true, false, config, mgrOpts, connCloseEventHandler, failedConnsHandler)
+	opts := tracerLoadOptions{
+		runtimeTracer: true,
+	}
+	return tracerLoaderFromAsset(buf, config, opts)
 }
 
-func loadPrebuiltTracer(config *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler) (*manager.Manager, func(), error) {
+func loadPrebuiltTracer(config *config.Config, offsets map[string]uint64) (*loader.Collection, func() error, error) {
 	buf, err := netebpf.ReadBPFModule(config.BPFDir, config.BPFDebug)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not read bpf module: %w", err)
 	}
-	defer buf.Close()
+	defer func() { _ = buf.Close() }()
 
 	kv, err := kernel.HostVersion()
 	if err != nil {
@@ -313,7 +339,10 @@ func loadPrebuiltTracer(config *config.Config, mgrOpts manager.Options, connClos
 		config.CollectUDPv6Conns = false
 	}
 
-	return tracerLoaderFromAsset(buf, false, false, config, mgrOpts, connCloseEventHandler, nil)
+	opts := tracerLoadOptions{
+		offsets: offsets,
+	}
+	return tracerLoaderFromAsset(buf, config, opts)
 }
 
 func isCORETracerSupported() error {

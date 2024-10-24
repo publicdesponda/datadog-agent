@@ -19,6 +19,7 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
 	"github.com/DataDog/datadog-agent/pkg/util/funcs"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -147,6 +148,20 @@ func GetMap[K any, V any](mgr *manager.Manager, name string) (*GenericMap[K, V],
 	gm, err := Map[K, V](m)
 	if err != nil {
 		return nil, err
+	}
+	return gm, nil
+}
+
+// GetCollectionMap gets the generic map with the given name from the collection
+// TODO replace GetMap with this
+func GetCollectionMap[K any, V any](coll *loader.Collection, name string) (*GenericMap[K, V], error) {
+	m, _ := coll.Collection.Maps[name]
+	if m == nil {
+		return nil, fmt.Errorf("map %q not found", name)
+	}
+	gm, err := Map[K, V](m)
+	if err != nil {
+		return nil, fmt.Errorf("map %q validation: %w", name, err)
 	}
 	return gm, nil
 }

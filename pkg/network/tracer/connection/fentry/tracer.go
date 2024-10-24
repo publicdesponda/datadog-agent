@@ -13,87 +13,113 @@ import (
 	"os"
 	"syscall"
 
-	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/asm"
+	"github.com/cilium/ebpf/btf"
+	"github.com/cilium/ebpf/rlimit"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
-	ebpftelemetry "github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/constant"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/loader"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fargate"
 )
 
-const probeUID = "net"
-
 var ErrorNotSupported = errors.New("fentry tracer is only supported on Fargate")
 
 // LoadTracer loads a new tracer
-func LoadTracer(config *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler) (*manager.Manager, func(), error) {
+func LoadTracer(config *config.Config) (*loader.Collection, func() error, error) {
 	if !fargate.IsFargateInstance() {
 		return nil, nil, ErrorNotSupported
 	}
 
-	m := ddebpf.NewManagerWithDefault(&manager.Manager{}, &ebpftelemetry.ErrorsTelemetryModifier{})
-	err := ddebpf.LoadCOREAsset(netebpf.ModuleFileName("tracer-fentry", config.BPFDebug), func(ar bytecode.AssetReader, o manager.Options) error {
-		o.RLimit = mgrOpts.RLimit
-		o.MapSpecEditors = mgrOpts.MapSpecEditors
-		o.ConstantEditors = mgrOpts.ConstantEditors
+	var coll *loader.Collection
+	err := ddebpf.LoadCORENoManagerAsset(netebpf.ModuleFileName("tracer-fentry", config.BPFDebug), func(buf bytecode.AssetReader, modLoadFunc ddebpf.KernelModuleBTFLoadFunc, vmlinux *btf.Spec) error {
+		if err := rlimit.RemoveMemlock(); err != nil {
+			return err
+		}
+
+		collSpec, err := ebpf.LoadCollectionSpecFromReader(buf)
+		if err != nil {
+			return fmt.Errorf("load collection spec: %s", err)
+		}
 
 		// Use the config to determine what kernel probes should be enabled
 		enabledProbes, err := enabledPrograms(config)
 		if err != nil {
 			return fmt.Errorf("invalid probe configuration: %v", err)
 		}
+		// exclude all non-enabled probes to ensure we don't run into problems with unsupported probe types
+		for funcName := range collSpec.Programs {
+			if _, enabled := enabledProbes[funcName]; !enabled {
+				delete(collSpec.Programs, funcName)
+			}
+		}
 
-		initManager(m, connCloseEventHandler, config)
+		if !config.RingBufferSupportedNPM() {
+			for _, p := range collSpec.Programs {
+				ddebpf.RemoveHelperCalls(p, asm.FnRingbufOutput)
+			}
+		}
 
 		file, err := os.Stat("/proc/self/ns/pid")
-
 		if err != nil {
 			return fmt.Errorf("could not load sysprobe pid: %w", err)
 		}
-
 		device := file.Sys().(*syscall.Stat_t).Dev
 		inode := file.Sys().(*syscall.Stat_t).Ino
-		ringbufferEnabled := config.RingBufferSupportedNPM()
-
-		o.ConstantEditors = append(o.ConstantEditors, manager.ConstantEditor{
-			Name:  "systemprobe_device",
-			Value: device,
-		})
-		o.ConstantEditors = append(o.ConstantEditors, manager.ConstantEditor{
-			Name:  "systemprobe_ino",
-			Value: inode,
-		})
-		util.AddBoolConst(&o, "ringbuffers_enabled", ringbufferEnabled)
-		if ringbufferEnabled {
-			util.EnableRingbuffersViaMapEditor(&mgrOpts)
+		if err := constant.EditAll(collSpec, "systemprobe_device", device); err != nil {
+			return fmt.Errorf("edit constant: %s", err)
+		}
+		if err := constant.EditAll(collSpec, "systemprobe_ino", inode); err != nil {
+			return fmt.Errorf("edit constant: %s", err)
 		}
 
-		// exclude all non-enabled probes to ensure we don't run into problems with unsupported probe types
-		for _, p := range m.Probes {
-			if _, enabled := enabledProbes[p.EBPFFuncName]; !enabled {
-				o.ExcludedFunctions = append(o.ExcludedFunctions, p.EBPFFuncName)
+		ringbufferEnabled := config.RingBufferSupportedNPM()
+		if ringbufferEnabled {
+			util.EnableRingBuffers(collSpec)
+			if err := constant.EditAll(collSpec, "ringbuffers_enabled", 1); err != nil {
+				return fmt.Errorf("edit constant: %s", err)
 			}
 		}
-		for funcName := range enabledProbes {
-			o.ActivatedProbes = append(
-				o.ActivatedProbes,
-				&manager.ProbeSelector{
-					ProbeIdentificationPair: manager.ProbeIdentificationPair{
-						EBPFFuncName: funcName,
-						UID:          probeUID,
-					},
-				})
+
+		if err := util.EditCommonMaps(collSpec, config); err != nil {
+			return fmt.Errorf("edit common maps: %s", err)
+		}
+		if err := util.EditCommonConstants(collSpec, config); err != nil {
+			return fmt.Errorf("edit common constants: %s", err)
 		}
 
-		return m.InitWithOptions(ar, &o)
+		progOpts := ebpf.ProgramOptions{
+			KernelTypes: vmlinux,
+		}
+		if err := ddebpf.LoadKernelModuleBTF(collSpec, &progOpts, modLoadFunc); err != nil {
+			return fmt.Errorf("error loading kernel module BTF: %s", err)
+		}
+		if err := ddebpf.PatchPrintkNewline(collSpec); err != nil {
+			return fmt.Errorf("patch printk newline: %w", err)
+		}
+		opts := ebpf.CollectionOptions{Programs: progOpts}
+		if err := telemetry.SetupErrorsTelemetry(collSpec, &opts); err != nil {
+			return fmt.Errorf("setup errors telemetry: %w", err)
+		}
+		coll, err = loader.NewCollectionWithOptions(collSpec, opts)
+		if err != nil {
+			return err
+		}
+		if err := telemetry.PostLoadSetup(coll); err != nil {
+			_ = coll.Close()
+			return err
+		}
+		return nil
 	})
 
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return m.Manager, nil, nil
+	return coll, nil, nil
 }
