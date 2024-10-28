@@ -87,8 +87,7 @@ var IgnoreCB = func(FilePath) error { return nil }
 
 // NewFileRegistry creates a new `FileRegistry` instance
 func NewFileRegistry(programName string) *FileRegistry {
-	log.Info("blocked list size 10000")
-	blocklistByID, err := simplelru.NewLRU[PathIdentifier, string](10000, nil)
+	blocklistByID, err := simplelru.NewLRU[PathIdentifier, string](2000, nil)
 	if err != nil {
 		log.Warnf("running without block cache list, creation error: %s", err)
 		blocklistByID = nil
