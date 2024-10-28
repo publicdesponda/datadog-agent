@@ -21,6 +21,7 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/hashicorp/go-multierror"
+	"github.com/shirou/gopsutil/process"
 	"golang.org/x/exp/maps"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
@@ -293,6 +294,8 @@ type UprobeAttacher struct {
 	// Used to detach them once the path is no longer used.
 	pathToAttachedProbes map[string][]manager.ProbeIdentificationPair
 
+	missed map[int32]struct{}
+
 	// onAttachCallback is a callback that is called whenever a probe is attached
 	onAttachCallback AttachCallback
 
@@ -334,6 +337,7 @@ func NewUprobeAttacher(name string, config AttacherConfig, mgr ProbeManager, onA
 		onAttachCallback:     onAttachCallback,
 		pathToAttachedProbes: make(map[string][]manager.ProbeIdentificationPair),
 		done:                 make(chan struct{}),
+		missed:               make(map[int32]struct{}),
 		inspector:            inspector,
 	}
 
@@ -414,6 +418,10 @@ func (ua *UprobeAttacher) Start() error {
 		}
 	}
 
+	if ua.name == "go-tls" {
+		log.Info("go-tls (attacher) with hooking check")
+	}
+
 	ua.wg.Add(1)
 	go func() {
 		processSync := time.NewTicker(ua.config.ScanProcessesInterval)
@@ -448,6 +456,7 @@ func (ua *UprobeAttacher) Start() error {
 			case <-processSync.C:
 				// We always track process deletions in the scan, to avoid memory leaks.
 				_ = ua.Sync(ua.config.EnablePeriodicScanNewProcesses, true)
+				ua.Check()
 			case event, ok := <-sharedLibDataChan:
 				if !ok {
 					return
@@ -462,6 +471,107 @@ func (ua *UprobeAttacher) Start() error {
 	log.Infof("uprobe attacher %s started", ua.name)
 
 	return nil
+}
+
+func (ua *UprobeAttacher) Check() error {
+	if ua.name != "go-tls" {
+		return nil
+	}
+
+	procRoot := kernel.ProcFSRoot()
+	pids, err := process.Pids()
+	if err != nil {
+		return err
+	}
+
+	seenPids := make(map[int]struct{})
+	for _, program := range utils.GetTracedProgramList() {
+		if program.ProgramType != "go-tls" {
+			continue
+		}
+
+		for _, pid := range program.PIDs {
+			seenPids[int(pid)] = struct{}{}
+		}
+	}
+
+	blockedPathIds := make(map[utils.PathIdentifier]struct{})
+	for _, blocked := range utils.GetBlockedPathIDsList() {
+		if blocked.ProgramType != "go-tls" {
+			continue
+		}
+
+		for _, pathId := range blocked.PathIdentifiers {
+			blockedPathIds[pathId.PathIdentifier] = struct{}{}
+		}
+	}
+
+	selfPid := os.Getpid()
+	alivePids := make(map[int32]struct{})
+
+	for _, pid := range pids {
+		proc, err := process.NewProcess(pid)
+		if err != nil {
+			continue
+		}
+
+		alivePids[pid] = struct{}{}
+
+		created, err := proc.CreateTime()
+		if err != nil {
+			continue
+		}
+
+		now := time.Now().UnixMilli()
+		alive := time.Duration((now - created) * int64(time.Millisecond))
+		if alive < 60*time.Second {
+			continue
+		}
+
+		if _, seen := seenPids[int(pid)]; seen {
+			continue
+		}
+
+		if int(pid) == selfPid {
+			continue
+		}
+
+		pidAsStr := strconv.FormatUint(uint64(pid), 10)
+		exePath := filepath.Join(ua.config.ProcRoot, pidAsStr, "exe")
+		binPath, err := utils.ResolveSymlink(exePath)
+		if err != nil {
+			continue
+		}
+
+		if internalProcessRegex.MatchString(binPath) {
+			continue
+		}
+
+		path, err := utils.NewFilePath(procRoot, binPath, uint32(pid))
+		if err != nil {
+			continue
+		}
+
+		if _, blocked := blockedPathIds[path.ID]; blocked {
+			continue
+		}
+
+		if _, found := ua.missed[pid]; found {
+			log.Warnf("go-tls (attacher): pid (%v) path (%v) neither hooked nor blocked - second+ time", pid, path)
+		} else {
+			log.Infof("go-tls (attacher): pid (%v) path (%v) neither hooked nor blocked - first time, not warning", pid, path)
+			ua.missed[pid] = struct{}{}
+		}
+	}
+
+	for pid := range ua.missed {
+		if _, alive := alivePids[pid]; !alive {
+			delete(ua.missed, pid)
+		}
+	}
+
+	return nil
+
 }
 
 // Sync scans the proc filesystem for new processes and detaches from terminated ones

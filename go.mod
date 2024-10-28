@@ -608,6 +608,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.3.0
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
 	github.com/lorenzosaino/go-sysctl v0.3.1
+	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.opentelemetry.io/collector/config/configtelemetry v0.104.0
 )
 
