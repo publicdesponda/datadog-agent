@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -324,11 +325,14 @@ func (p *Probe) sendEventToHandlers(event *model.Event) {
 }
 
 func (p *Probe) sendEventToConsumers(event *model.Event) {
+	pid := event.GetProcessPid()
 	for _, pc := range p.eventConsumers[event.GetEventType()] {
+		id := pc.consumer.ID()
 		if copied := pc.consumer.Copy(event); copied != nil {
 			select {
 			case pc.eventCh <- copied:
 			default:
+				log.Infof("sendEventToConsumers drop event %v consumer %v", pid, id)
 				pc.eventDropped.Inc()
 			}
 		}

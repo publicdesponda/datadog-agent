@@ -64,6 +64,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // EventStream describes the interface implemented by reordered perf maps or ring buffers
@@ -564,6 +565,8 @@ func (p *EBPFProbe) setProcessContext(eventType model.EventType, event *model.Ev
 	}
 
 	if process.IsKThread(event.ProcessContext.PPid, event.ProcessContext.Pid) {
+		log.Infof("setProcessContext event %p return false due to kthread comm %v ppid %v pid %v", event, event.ProcessContext.Comm,
+			event.ProcessContext.PPid, event.ProcessContext.Pid)
 		return false
 	}
 
@@ -730,6 +733,8 @@ func (p *EBPFProbe) handleEvent(CPU int, data []byte) {
 				event.SetPathResolutionError(&event.ProcessCacheEntry.FileEvent, err)
 			}
 		} else {
+			log.Infof("handleEvent event %p add exec entry comm %v pid %v", event, event.ProcessCacheEntry.Comm, event.ProcessCacheEntry.Pid)
+
 			p.Resolvers.ProcessResolver.AddExecEntry(event.ProcessCacheEntry, event.PIDContext.ExecInode)
 		}
 
