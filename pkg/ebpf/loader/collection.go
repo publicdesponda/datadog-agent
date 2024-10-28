@@ -19,6 +19,7 @@ type Collection struct {
 	*ebpf.Collection
 
 	Kprobes       map[string]*Kprobe
+	Uprobes       map[string]*Uprobe
 	SocketFilters map[string]*SocketFilter
 	Tracepoints   map[string]*Tracepoint
 	Tracing       map[string]*Tracing
@@ -43,6 +44,16 @@ type Kprobe struct {
 	bypassIndex uint32
 	bypassMap   *ebpf.Map
 }
+
+type Uprobe struct {
+	Program       *ebpf.Program
+	BinaryPath    string
+	AttachTo      string
+	IsReturnProbe bool
+	Options       *link.UprobeOptions
+
+	bypassIndex uint32
+	bypassMap   *ebpf.Map
 }
 
 type SocketFilter struct {
@@ -109,6 +120,30 @@ func NewCollectionWithOptions(collSpec *ebpf.CollectionSpec, options CollectionO
 				}
 				attachPoint := spec.SectionName[len(kretprobePrefix):]
 				c.Kprobes[name] = &Kprobe{
+					Program:       prog,
+					IsReturnProbe: true,
+					AttachTo:      attachPoint,
+					bypassIndex:   bypassIndexes[name],
+					bypassMap:     bypassMap,
+				}
+			case strings.HasPrefix(spec.SectionName, uprobePrefix):
+				if c.Uprobes == nil {
+					c.Uprobes = map[string]*Uprobe{}
+				}
+				attachPoint := spec.SectionName[len(uprobePrefix):]
+				c.Uprobes[name] = &Uprobe{
+					Program:       prog,
+					IsReturnProbe: false,
+					AttachTo:      attachPoint,
+					bypassIndex:   bypassIndexes[name],
+					bypassMap:     bypassMap,
+				}
+			case strings.HasPrefix(spec.SectionName, uretprobePrefix):
+				if c.Uprobes == nil {
+					c.Uprobes = map[string]*Uprobe{}
+				}
+				attachPoint := spec.SectionName[len(uretprobePrefix):]
+				c.Uprobes[name] = &Uprobe{
 					Program:       prog,
 					IsReturnProbe: true,
 					AttachTo:      attachPoint,

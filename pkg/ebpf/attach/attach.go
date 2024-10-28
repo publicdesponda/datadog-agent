@@ -56,6 +56,29 @@ func Collection(coll *loader.Collection) (links []Link, err error) {
 		}
 	}
 
+	for name, uprobe := range coll.Uprobes {
+		// TODO do we have a better way of dealing with the binaries?
+		exe, err := link.OpenExecutable(uprobe.BinaryPath)
+		if err != nil {
+			return nil, fmt.Errorf("uprobe %q open %s: %s", name, uprobe.BinaryPath, err)
+		}
+		if uprobe.IsReturnProbe {
+			l, err := exe.Uretprobe(uprobe.AttachTo, uprobe.Program, uprobe.Options)
+			if err != nil {
+				return nil, fmt.Errorf("link uretprobe %s to %s: %s", name, uprobe.AttachTo, err)
+			}
+			defer closeOnError(l)
+			links = append(links, l)
+		} else {
+			l, err := exe.Uprobe(uprobe.AttachTo, uprobe.Program, uprobe.Options)
+			if err != nil {
+				return nil, fmt.Errorf("link uprobe %s to %s: %s", name, uprobe.AttachTo, err)
+			}
+			defer closeOnError(l)
+			links = append(links, l)
+		}
+	}
+
 	for name, tp := range coll.Tracepoints {
 		l, err := link.Tracepoint(tp.Group, tp.Name, tp.Program, tp.Options)
 		if err != nil {

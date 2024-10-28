@@ -185,3 +185,23 @@ func (k *Kprobe) Resume() error {
 	}
 	return nil
 }
+
+func (u *Uprobe) Pause() error {
+	if u.bypassMap == nil || u.bypassIndex == 0 {
+		return nil
+	}
+	if err := u.bypassMap.Update(u.bypassIndex, bypassValue, ebpf.UpdateExist); err != nil {
+		return fmt.Errorf("update bypass map: %w", err)
+	}
+	return nil
+}
+
+func (u *Uprobe) Resume() error {
+	if u.bypassMap == nil || u.bypassIndex == 0 {
+		return nil
+	}
+	if err := u.bypassMap.Update(u.bypassIndex, enableValue, ebpf.UpdateExist); err != nil {
+		return fmt.Errorf("update bypass map: %w", err)
+	}
+	return nil
+}
