@@ -135,7 +135,7 @@ var EbpfTracerTelemetry = struct {
 
 type ebpfTracer struct {
 	coll  *loader.Collection
-	links []attach.Link
+	links attach.LinkSet
 
 	conns          *maps.GenericMap[netebpf.ConnTuple, netebpf.ConnStats]
 	tcpStats       *maps.GenericMap[netebpf.ConnTuple, netebpf.TCPStats]
@@ -183,11 +183,6 @@ func newEbpfTracer(config *config.Config, _ telemetryComponent.Component) (trace
 	if err != nil {
 		return nil, fmt.Errorf("could not determine number of CPUs: %w", err)
 	}
-
-	//mgrOptions := manager.Options{
-	//	// TODO bypass
-	//	//BypassEnabled:          config.BypassEnabled,
-	//}
 
 	closedChannelSize := defaultClosedChannelSize
 	if config.ClosedChannelSize > 0 {
@@ -336,18 +331,28 @@ func (t *ebpfTracer) Start(callback func(*network.ConnectionStats)) (err error) 
 
 func (t *ebpfTracer) Pause() error {
 	// add small delay for socket filters to properly detach
-	//time.Sleep(1 * time.Millisecond)
-	// TODO pause
-	//return t.m.Pause()
+	time.Sleep(1 * time.Millisecond)
+	if err := t.coll.Pause(); err != nil {
+		return err
+	}
+	if err := t.links.Pause(); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (t *ebpfTracer) Resume() error {
-	// TODO resume
-	//err := t.m.Resume()
-	// add small delay for socket filters to properly attach
-	//time.Sleep(1 * time.Millisecond)
-	//return err
+	defer func() {
+		// add small delay for socket filters to properly attach
+		time.Sleep(1 * time.Millisecond)
+	}()
+
+	if err := t.coll.Resume(); err != nil {
+		return err
+	}
+	if err := t.links.Resume(); err != nil {
+		return err
+	}
 	return nil
 }
 

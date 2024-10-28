@@ -134,9 +134,11 @@ func startEBPFCheck(buf bytecode.AssetReader, _ ddebpf.KernelModuleBTFLoadFunc, 
 	}
 
 	p := Probe{nrcpus: nrcpus}
-	p.coll, err = loader.NewCollectionWithOptions(collSpec, ebpf.CollectionOptions{
-		Programs: ebpf.ProgramOptions{
-			KernelTypes: vmlinux,
+	p.coll, err = loader.NewCollectionWithOptions(collSpec, loader.CollectionOptions{
+		CollectionOptions: ebpf.CollectionOptions{
+			Programs: ebpf.ProgramOptions{
+				KernelTypes: vmlinux,
+			},
 		},
 	})
 	if err != nil {

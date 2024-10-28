@@ -24,6 +24,11 @@ type Collection struct {
 	Tracing       map[string]*Tracing
 }
 
+type CollectionOptions struct {
+	ebpf.CollectionOptions
+	BypassEnabled bool
+}
+
 func (c *Collection) Close() error {
 	c.Collection.Close()
 	return nil
@@ -34,6 +39,10 @@ type Kprobe struct {
 	AttachTo      string
 	IsReturnProbe bool
 	Options       *link.KprobeOptions
+
+	bypassIndex uint32
+	bypassMap   *ebpf.Map
+}
 }
 
 type SocketFilter struct {
@@ -53,37 +62,61 @@ type Tracing struct {
 	AttachType ebpf.AttachType
 }
 
-func NewCollectionWithOptions(collSpec *ebpf.CollectionSpec, options ebpf.CollectionOptions) (*Collection, error) {
-	coll, err := ebpf.NewCollectionWithOptions(collSpec, options)
+func NewCollectionWithOptions(collSpec *ebpf.CollectionSpec, options CollectionOptions) (*Collection, error) {
+	var err error
+	var bypassIndexes map[string]uint32
+	if options.BypassEnabled {
+		bypassIndexes, err = setupBypass(collSpec)
+		if err != nil {
+			return nil, fmt.Errorf("setup bypass: %w", err)
+		}
+	}
+	if len(bypassIndexes) == 0 {
+		delete(collSpec.Maps, bypassMapName)
+	}
+
+	coll, err := ebpf.NewCollectionWithOptions(collSpec, options.CollectionOptions)
 	if err != nil {
 		return nil, fmt.Errorf("load collection: %w", err)
 	}
 	c := &Collection{
 		Collection: coll,
 	}
+	bypassMap := c.Maps[bypassMapName]
 
 	for name, prog := range coll.Programs {
 		spec := collSpec.Programs[name]
 		switch prog.Type() {
 		case ebpf.Kprobe:
-			if c.Kprobes == nil {
-				c.Kprobes = map[string]*Kprobe{}
-			}
 			const kprobePrefix, kretprobePrefix = "kprobe/", "kretprobe/"
-			if strings.HasPrefix(spec.SectionName, kprobePrefix) {
+			const uprobePrefix, uretprobePrefix = "uprobe/", "uretprobe/"
+			switch {
+			case strings.HasPrefix(spec.SectionName, kprobePrefix):
+				if c.Kprobes == nil {
+					c.Kprobes = map[string]*Kprobe{}
+				}
 				attachPoint := spec.SectionName[len(kprobePrefix):]
 				c.Kprobes[name] = &Kprobe{
 					Program:       prog,
 					IsReturnProbe: false,
 					AttachTo:      attachPoint,
+					bypassIndex:   bypassIndexes[name],
+					bypassMap:     bypassMap,
 				}
-			} else if strings.HasPrefix(spec.SectionName, kretprobePrefix) {
+			case strings.HasPrefix(spec.SectionName, kretprobePrefix):
+				if c.Kprobes == nil {
+					c.Kprobes = map[string]*Kprobe{}
+				}
 				attachPoint := spec.SectionName[len(kretprobePrefix):]
 				c.Kprobes[name] = &Kprobe{
 					Program:       prog,
 					IsReturnProbe: true,
 					AttachTo:      attachPoint,
+					bypassIndex:   bypassIndexes[name],
+					bypassMap:     bypassMap,
 				}
+			default:
+				return nil, fmt.Errorf("unknown kprobe section prefix %q", spec.SectionName)
 			}
 		case ebpf.TracePoint:
 			if c.Tracepoints == nil {

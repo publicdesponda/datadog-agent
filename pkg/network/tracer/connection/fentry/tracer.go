@@ -107,7 +107,10 @@ func LoadTracer(config *config.Config) (*loader.Collection, func() error, error)
 		if err := telemetry.SetupErrorsTelemetry(collSpec, &opts); err != nil {
 			return fmt.Errorf("setup errors telemetry: %w", err)
 		}
-		coll, err = loader.NewCollectionWithOptions(collSpec, opts)
+		coll, err = loader.NewCollectionWithOptions(collSpec, loader.CollectionOptions{
+			CollectionOptions: opts,
+			BypassEnabled:     config.BypassEnabled,
+		})
 		if err != nil {
 			return err
 		}

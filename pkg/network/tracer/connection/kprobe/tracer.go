@@ -243,7 +243,10 @@ func loadTracerFromAsset(buf bytecode.AssetReader, config *config.Config, opts t
 	if err := telemetry.SetupErrorsTelemetry(collSpec, &collOpts); err != nil {
 		return nil, nil, fmt.Errorf("setup errors telemetry: %w", err)
 	}
-	coll, err = loader.NewCollectionWithOptions(collSpec, collOpts)
+	coll, err = loader.NewCollectionWithOptions(collSpec, loader.CollectionOptions{
+		CollectionOptions: collOpts,
+		BypassEnabled:     config.BypassEnabled,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("load collection: %w", err)
 	}
