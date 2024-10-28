@@ -11,17 +11,23 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DataDog/datadog-agent/comp/core/hostname/hostnameimpl"
 	"github.com/DataDog/datadog-agent/comp/core/hostname/hostnameinterface"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
+	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/tcp"
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/decoder"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/processor"
 	"github.com/DataDog/datadog-agent/pkg/logs/sender"
+	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/logs/status/statusinterface"
+	status "github.com/DataDog/datadog-agent/pkg/logs/status/utils"
+	tailer "github.com/DataDog/datadog-agent/pkg/logs/tailers/file"
 )
 
 // Pipeline processes and sends messages to the backend
@@ -160,4 +166,64 @@ func getStrategy(inputChan chan *message.Message, outputChan chan *message.Paylo
 		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, serverless, flushWg, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
 	}
 	return sender.NewStreamStrategy(inputChan, outputChan, sender.IdentityContentType)
+}
+
+func stub() {
+
+	// load a config
+	// start a pipeline
+	// read the file
+	// print it out
+
+	// The file could be from a command line argument, we can just open this file
+	// agent logs-test /path/to/file.log
+	// .               ^^^^^^^^^^^^^^^^^
+
+	inputChan := make(chan *message.Message, 1)
+
+	path := "./test-log-file.log" // Default file for testing
+	sources := sources.NewLogSources()
+	allSources := sources.GetSources() //Does the log source matter?
+	file := tailer.NewFile(path, allSources[0], false)
+	tailer := createTailer(file, inputChan) // tailer comes with the decoder
+
+	var offset int64
+	var whence int
+
+	offset, whence = 0, 0
+	err := tailer.Start(offset, whence)
+	if err != nil {
+		fmt.Println("wack error")
+	}
+	// the processor executes rules (e.g exclusion rules, all the log processing rules)
+	// need to fill out processingRules (config)
+	processingRules, _ := config.GlobalProcessingRules(pkgconfigsetup.Datadog())
+
+	encoder := processor.JSONEncoder //might be the wrong encoder
+
+	output := make(chan *message.Message, 1)
+	processor := processor.New(pkgconfigsetup.Datadog(), inputChan, output, processingRules,
+		encoder, nil, hostnameimpl.NewHostnameService(), 0)
+
+	processor.Start()
+
+	// print to console from output channel
+	msg := <-output
+	fmt.Println("wacktest Processed Log Message:", string(msg.GetContent()))
+
+}
+
+func createTailer(file *tailer.File, outputChan chan *message.Message) *tailer.Tailer {
+	tailerInfo := status.NewInfoRegistry()
+
+	tailerOptions := &tailer.TailerOptions{
+		OutputChan:    outputChan,
+		File:          file,
+		SleepDuration: 0,
+		Decoder:       decoder.NewDecoderFromSource(file.Source, tailerInfo),
+		Info:          tailerInfo,
+		TagAdder:      nil,
+	}
+
+	return tailer.NewTailer(tailerOptions)
 }
