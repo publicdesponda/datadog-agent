@@ -7,6 +7,8 @@
 
 package attach
 
+import "fmt"
+
 type Link interface {
 	Close() error
 }
@@ -22,7 +24,7 @@ func (ls LinkSet) Pause() error {
 	for _, l := range ls {
 		if pl, ok := l.(pauser); ok {
 			if err := pl.Pause(); err != nil {
-				return err
+				return fmt.Errorf("pause link %T: %s", l, err)
 			}
 		}
 	}
@@ -33,7 +35,7 @@ func (ls LinkSet) Resume() error {
 	for _, l := range ls {
 		if pl, ok := l.(pauser); ok {
 			if err := pl.Resume(); err != nil {
-				return err
+				return fmt.Errorf("resume link %T: %s", l, err)
 			}
 		}
 	}

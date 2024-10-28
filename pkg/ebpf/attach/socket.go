@@ -8,6 +8,7 @@
 package attach
 
 import (
+	"sync"
 	"syscall"
 
 	"github.com/cilium/ebpf"
@@ -17,33 +18,57 @@ import (
 // socketFilter attaches the probe to the provided socket
 func socketFilter(prog *ebpf.Program, socketFD int) (Link, error) {
 	fd := prog.FD()
-	if err := sockAttach(socketFD, fd); err != nil {
+	l := &socketLink{sockFD: socketFD, progFD: fd}
+	if err := l.attach(); err != nil {
 		return nil, err
 	}
-	return &socketLink{socketFD, fd}, nil
+	return l, nil
 }
 
 type socketLink struct {
+	sync.Mutex
+	attached bool
+
 	sockFD int
 	progFD int
 }
 
 func (s *socketLink) Close() error {
-	return sockDetach(s.sockFD, s.progFD)
+	return s.detach()
 }
 
 func (s *socketLink) Pause() error {
-	return sockDetach(s.sockFD, s.progFD)
+	return s.detach()
 }
 
 func (s *socketLink) Resume() error {
-	return sockAttach(s.sockFD, s.progFD)
+	return s.attach()
 }
 
-func sockAttach(sockFd int, progFd int) error {
-	return syscall.SetsockoptInt(sockFd, syscall.SOL_SOCKET, unix.SO_ATTACH_BPF, progFd)
+func (s *socketLink) attach() error {
+	s.Lock()
+	defer s.Unlock()
+	if s.attached {
+		return nil
+	}
+
+	err := syscall.SetsockoptInt(s.sockFD, syscall.SOL_SOCKET, unix.SO_ATTACH_BPF, s.progFD)
+	if err == nil {
+		s.attached = true
+	}
+	return err
 }
 
-func sockDetach(sockFd int, progFd int) error {
-	return syscall.SetsockoptInt(sockFd, syscall.SOL_SOCKET, unix.SO_DETACH_BPF, progFd)
+func (s *socketLink) detach() error {
+	s.Lock()
+	defer s.Unlock()
+	if !s.attached {
+		return nil
+	}
+
+	err := syscall.SetsockoptInt(s.sockFD, syscall.SOL_SOCKET, unix.SO_DETACH_BPF, s.progFD)
+	if err == nil {
+		s.attached = false
+	}
+	return err
 }

@@ -141,28 +141,28 @@ type Pauser interface {
 }
 
 func (c *Collection) Pause() error {
-	for _, kp := range c.Kprobes {
+	for name, kp := range c.Kprobes {
 		if err := kp.Pause(); err != nil {
-			return err
+			return fmt.Errorf("pause kprobe %s: %s", name, err)
 		}
 	}
-	for _, up := range c.Uprobes {
+	for name, up := range c.Uprobes {
 		if err := up.Pause(); err != nil {
-			return err
+			return fmt.Errorf("pause uprobe %s: %s", name, err)
 		}
 	}
 	return nil
 }
 
 func (c *Collection) Resume() error {
-	for _, kp := range c.Kprobes {
+	for name, kp := range c.Kprobes {
 		if err := kp.Resume(); err != nil {
-			return err
+			return fmt.Errorf("resume kprobe %s: %s", name, err)
 		}
 	}
-	for _, up := range c.Uprobes {
+	for name, up := range c.Uprobes {
 		if err := up.Resume(); err != nil {
-			return err
+			return fmt.Errorf("resume uprobe %s: %s", name, err)
 		}
 	}
 	return nil
