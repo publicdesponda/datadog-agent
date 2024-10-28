@@ -333,7 +333,7 @@ func (p *goTLSProgram) Check() error {
 			continue
 		}
 
-		log.Warnf("go-tls: pid (%v) path (%v) neither hooked nor blocked", pid, path)
+		log.Warnf("go-tls (increased blocked list): pid (%v) path (%v) neither hooked nor blocked", pid, path)
 	}
 
 	return nil
