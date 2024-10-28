@@ -263,6 +263,8 @@ type SymDBProxyConfig struct {
 	APIKey string `json:"-"` // Never marshal this field
 	// AdditionalEndpoints is a map of additional Datadog endpoints to API keys.
 	AdditionalEndpoints map[string][]string `json:"-"` // Never marshal this field
+	// ReceiverTimeout indicates the maximum time an SymDBProxy request can take. Value in seconds.
+	ReceiverTimeout int
 }
 
 // AgentConfig handles the interpretation of the configuration (with default

@@ -233,6 +233,14 @@ func getConfiguredEVPRequestTimeoutDuration(conf *config.AgentConfig) time.Durat
 	return timeout
 }
 
+func getConfiguredSymDBRequestTimeoutDuration(conf *config.AgentConfig) time.Duration {
+	timeout := 30 * time.Second
+	if conf.SymDBProxy.ReceiverTimeout > 0 {
+		timeout = time.Duration(conf.EVPProxy.ReceiverTimeout) * time.Second
+	}
+	return timeout
+}
+
 // Start starts doing the HTTP server and is ready to receive traces
 func (r *HTTPReceiver) Start() {
 	if !r.conf.ReceiverEnabled {

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"go.uber.org/atomic"
 
@@ -116,6 +117,23 @@ func TestSymDBProxyHandler(t *testing.T) {
 		res.Body.Close()
 		assert.NoError(t, err)
 		assert.Contains(t, string(slurp), "error parsing symbol database intake URL", "invalid message: %q", string(slurp))
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		conf := newTestReceiverConfig()
+		conf.SymDBProxy.ReceiverTimeout = 1
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+			time.Sleep(2 * time.Second)
+		}))
+		defer srv.Close()
+		req, err := http.NewRequest("POST", "/some/path", nil)
+		assert.NoError(t, err)
+		receiver := newTestReceiverFromConfig(conf)
+		recorder := httptest.NewRecorder()
+		receiver.symDBProxyHandler().ServeHTTP(recorder, req)
+		resp := recorder.Result()
+		resp.Body.Close()
+		assert.Equal(t, http.StatusBadGateway, resp.StatusCode, "Got: ", fmt.Sprint(resp.StatusCode))
 	})
 
 	t.Run("ok_additional_endpoints", func(t *testing.T) {
