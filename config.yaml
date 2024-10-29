@@ -1,0 +1,17 @@
+logs_enabled: true
+apm_config:
+  enabled: true
+  features: ["enable_receive_resource_spans_v2", "enable_operation_and_resource_name_logic_v2"]
+api_key: ae206d0ab94d8690a19dec43c82ba6fb
+site: datad0g.com
+otlp_config:
+    receiver:
+        protocols:
+          grpc:
+          http:
+    traces:
+      enabled: true
+    logs:
+        enabled: true
+    debug:
+      verbosity: detailed

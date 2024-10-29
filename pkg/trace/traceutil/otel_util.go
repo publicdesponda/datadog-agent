@@ -171,7 +171,7 @@ func GetOTelService(span ptrace.Span, res pcommon.Resource, normalize bool) stri
 	return svc
 }
 
-// GetOTelResource returns the DD resource name based on OTel span and resource attributes.
+// GetOTelResourceV1 returns the DD resource name based on OTel span and resource attributes.
 func GetOTelResourceV1(span ptrace.Span, res pcommon.Resource) (resName string) {
 	resName = GetOTelAttrValInResAndSpanAttrs(span, res, false, "resource.name")
 	if resName == "" {
@@ -204,17 +204,16 @@ func GetOTelResourceV1(span ptrace.Span, res pcommon.Resource) (resName string) 
 	return
 }
 
-// GetOTelResource returns the DD resource name based on OTel span and resource attributes.
+// GetOTelResourceV2 returns the DD resource name based on OTel span and resource attributes.
 func GetOTelResourceV2(span ptrace.Span, res pcommon.Resource) (resName string) {
 	resName = GetOTelAttrValInResAndSpanAttrs(span, res, false, "resource.name")
 	if resName == "" {
 		if m := GetOTelAttrValInResAndSpanAttrs(span, res, false, "http.request.method", semconv.AttributeHTTPMethod); m != "" {
-			// use the HTTP method + route (if available)
 			if m == "_OTHER" {
 				m = "HTTP"
-			} else {
-				resName = m
 			}
+			// use the HTTP method + route (if available)
+			resName = m
 			if span.Kind() == ptrace.SpanKindServer {
 				if route := GetOTelAttrValInResAndSpanAttrs(span, res, false, semconv.AttributeHTTPRoute); route != "" {
 					resName = resName + " " + route
