@@ -247,6 +247,7 @@ func (p *Processor) processMessage(msg *message.Message) {
 			return
 		}
 
+		p.utilization.Stop()
 		p.outputChan <- msg
 		p.pipelineMonitor.ReportComponentIngress(msg, "strategy")
 	} else {
