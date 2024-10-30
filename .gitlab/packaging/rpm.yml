@@ -11,7 +11,7 @@
     - printf -- "$($CI_PROJECT_DIR/tools/ci/fetch_secret.sh $RPM_GPG_KEY)" | gpg --import --batch
     - EXIT="${PIPESTATUS[0]}"; if [ $EXIT -ne 0 ]; then echo "Unable to locate credentials needs gitlab runner restart"; exit $EXIT; fi
     - RPM_SIGNING_PASSPHRASE=$($CI_PROJECT_DIR/tools/ci/fetch_secret.sh $RPM_SIGNING_PASSPHRASE) || exit $?; export RPM_SIGNING_PASSPHRASE
-    - inv -e omnibus.build --release-version "$RELEASE_VERSION" --major-version "$AGENT_MAJOR_VERSION" --base-dir $OMNIBUS_BASE_DIR --skip-deps --target-project=${DD_PROJECT} ${OMNIBUS_EXTRA_ARGS}
+    - inv -e omnibus.build --release-version "$RELEASE_VERSION" --major-version "$AGENT_MAJOR_VERSION" --base-dir $OMNIBUS_BASE_DIR --skip-deps --target-project=${DD_PROJECT} --host-distribution=${HOST_DISTRIBUTION}
     - ls -la $OMNIBUS_PACKAGE_DIR/
     - !reference [.lint_linux_packages]
   stage: packaging
@@ -25,18 +25,19 @@
     KUBERNETES_MEMORY_LIMIT: "32Gi"
     OMNIBUS_PACKAGE_ARTIFACT_DIR: $OMNIBUS_PACKAGE_DIR
     PACKAGE_REQUIRED_FILES_LIST: "test/required_files/agent-rpm.txt"
+    HOST_DISTRIBUTION: rhel
   cache:
     - !reference [.cache_omnibus_ruby_deps, cache]
 
 .package_rpm_x86:
-  image: registry.ddbuild.io/ci/datadog-agent-buildimages/rpm_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux-glibc-2-17-x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   variables:
     DD_PKG_ARCH: x86_64
     PACKAGE_ARCH: amd64
 
 .package_rpm_arm64:
-  image: registry.ddbuild.io/ci/datadog-agent-buildimages/rpm_arm64$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux-glibc-2-23-arm64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:arm64"]
   variables:
     PACKAGE_ARCH: arm64
@@ -57,7 +58,7 @@
     paths:
       - $OMNIBUS_PACKAGE_DIR_SUSE
   variables:
-    OMNIBUS_EXTRA_ARGS: "--host-distribution=suse"
+    HOST_DISTRIBUTION: suse
 
 agent_rpm-x64-a7:
   extends: [.package_rpm_common, .package_rpm_agent_7, .package_rpm_x86]
@@ -124,7 +125,7 @@ installer_suse_rpm-arm64:
     - printf -- "$($CI_PROJECT_DIR/tools/ci/fetch_secret.sh $RPM_GPG_KEY)" | gpg --import --batch
     - EXIT="${PIPESTATUS[0]}"; if [ $EXIT -ne 0 ]; then echo "Unable to locate credentials needs gitlab runner restart"; exit $EXIT; fi
     - RPM_SIGNING_PASSPHRASE=$($CI_PROJECT_DIR/tools/ci/fetch_secret.sh $RPM_SIGNING_PASSPHRASE) || exit $?; export RPM_SIGNING_PASSPHRASE
-    - inv -e omnibus.build --release-version "$RELEASE_VERSION" --base-dir $OMNIBUS_BASE_DIR --skip-deps --flavor=iot ${OMNIBUS_EXTRA_ARGS}
+    - inv -e omnibus.build --release-version "$RELEASE_VERSION" --base-dir $OMNIBUS_BASE_DIR --skip-deps --flavor=iot --host-distribution=${HOST_DISTRIBUTION}
     - ls -la $OMNIBUS_PACKAGE_DIR/
     - !reference [.lint_linux_packages]
   stage: packaging
@@ -139,6 +140,7 @@ installer_suse_rpm-arm64:
     OMNIBUS_PACKAGE_ARTIFACT_DIR: $OMNIBUS_PACKAGE_DIR
     RELEASE_VERSION: $RELEASE_VERSION_7
     PACKAGE_REQUIRED_FILES_LIST: "test/required_files/iot-agent-rpm.txt"
+    HOST_DISTRIBUTION: rhel
   cache:
     - !reference [.cache_omnibus_ruby_deps, cache]
 
@@ -177,7 +179,7 @@ iot_agent_suse-x64:
     paths:
       - $OMNIBUS_PACKAGE_DIR_SUSE
   variables:
-    OMNIBUS_EXTRA_ARGS: "--host-distribution=suse"
+    HOST_DISTRIBUTION: suse
   cache:
     - !reference [.cache_omnibus_ruby_deps, cache]
 
