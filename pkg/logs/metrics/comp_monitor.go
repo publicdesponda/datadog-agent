@@ -190,6 +190,8 @@ func (u *TelemetryUtilizationMonitor) Start() {
 func (u *TelemetryUtilizationMonitor) Stop() {
 	u.Lock()
 	defer u.Unlock()
+	u.inUse += time.Since(u.startInUse)
+	u.startIdle = time.Now()
 	select {
 	case <-u.ticker.C:
 		u.lastUtilization = float64(u.inUse) / (float64(u.idle + u.inUse))
