@@ -147,22 +147,27 @@ func (n *NoopPipelineMonitor) MakeUtilizationMonitor(name string) UtilizationMon
 type UtilizationMonitor interface {
 	Start()
 	Stop()
+	GetUtilization() float64
 }
 
 type NoopUtilizationMonitor struct{}
 
 func (n *NoopUtilizationMonitor) Start() {}
 func (n *NoopUtilizationMonitor) Stop()  {}
+func (n *NoopUtilizationMonitor) GetUtilization() float64 {
+	return 0
+}
 
 type TelemetryUtilizationMonitor struct {
 	sync.Mutex
-	inUse      float64
-	idle       float64
-	startIdle  time.Time
-	startInUse time.Time
-	name       string
-	instance   string
-	ticker     *time.Ticker
+	inUse           float64
+	idle            float64
+	startIdle       time.Time
+	startInUse      time.Time
+	name            string
+	instance        string
+	ticker          *time.Ticker
+	lastUtilization float64
 }
 
 func NewTelemetryUtilizationMonitor(name, instance string, interval time.Duration) *TelemetryUtilizationMonitor {
@@ -189,10 +194,17 @@ func (u *TelemetryUtilizationMonitor) Stop() {
 	u.startIdle = time.Now()
 	select {
 	case <-u.ticker.C:
-		TlmUtilization.Set(u.inUse/(u.idle+u.inUse), u.name, u.instance)
+		u.lastUtilization = u.inUse / (u.idle + u.inUse)
+		TlmUtilization.Set(u.lastUtilization, u.name, u.instance)
 		u.idle = 0
 		u.inUse = 0
 	default:
 	}
 
+}
+
+func (u *TelemetryUtilizationMonitor) GetUtilization() float64 {
+	u.Lock()
+	defer u.Unlock()
+	return u.lastUtilization
 }

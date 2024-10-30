@@ -158,11 +158,12 @@ func getDestinations(endpoints *config.Endpoints, destinationsContext *client.De
 //nolint:revive // TODO(AML) Fix revive linter
 func getStrategy(inputChan chan *message.Message, outputChan chan *message.Payload, flushChan chan struct{}, endpoints *config.Endpoints, serverless bool, flushWg *sync.WaitGroup, pipelineMonitor metrics.PipelineMonitor) sender.Strategy {
 	if endpoints.UseHTTP || serverless {
+		utilization := pipelineMonitor.MakeUtilizationMonitor("strategy")
 		encoder := sender.IdentityContentType
 		if endpoints.Main.UseCompression {
-			encoder = sender.NewGzipContentEncoding(endpoints.Main.CompressionLevel)
+			encoder = sender.NewAdaptiveGzipContentEncoding(endpoints.Main.CompressionLevel, utilization)
 		}
-		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, serverless, flushWg, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder, pipelineMonitor)
+		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, serverless, flushWg, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder, pipelineMonitor, utilization)
 	}
 	return sender.NewStreamStrategy(inputChan, outputChan, sender.IdentityContentType)
 }
