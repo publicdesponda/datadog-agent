@@ -104,9 +104,9 @@ func (c *AdaptiveGzipContentEncoding) getWriter(payload *bytes.Buffer) (*gzip.Wr
 	max := gzip.BestCompression
 
 	if c.utilization.GetUtilization() > 0.9 {
-		c.level += 1
+		c.level++
 	} else if c.utilization.GetUtilization() < 0.5 {
-		c.level -= 1
+		c.level--
 	}
 
 	if c.level < min {
