@@ -80,7 +80,7 @@ type AdaptiveGzipContentEncoding struct {
 	level       int
 }
 
-// NewGzipContentEncoding creates a new Gzip content type
+// NewAdaptiveGzipContentEncoding creates a new Gzip content type
 func NewAdaptiveGzipContentEncoding(initLevel int, utilization metrics.UtilizationMonitor) *AdaptiveGzipContentEncoding {
 
 	if initLevel < gzip.NoCompression {
