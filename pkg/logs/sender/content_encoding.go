@@ -100,7 +100,7 @@ func (c *AdaptiveGzipContentEncoding) name() string {
 }
 
 func (c *AdaptiveGzipContentEncoding) getWriter(payload *bytes.Buffer) (*gzip.Writer, error) {
-	min := gzip.NoCompression
+	min := gzip.BestSpeed
 	max := gzip.BestCompression
 
 	if c.utilization.GetUtilization() > 0.9 {

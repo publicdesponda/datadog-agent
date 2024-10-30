@@ -249,9 +249,11 @@ func (p *Processor) processMessage(msg *message.Message) {
 
 		p.outputChan <- msg
 		p.pipelineMonitor.ReportComponentIngress(msg, "strategy")
+	} else {
+		p.utilization.Stop()
 	}
 	p.pipelineMonitor.ReportComponentEgress(msg, "processor")
-	p.utilization.Stop()
+
 }
 
 // applyRedactingRules returns given a message if we should process it or not,
