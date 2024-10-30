@@ -432,7 +432,8 @@ func newHTTPPassthroughPipeline(coreConfig model.Reader, eventPlatformReceiver e
 			endpoints.BatchMaxContentSize,
 			desc.eventType,
 			encoder,
-			pipelineMonitor)
+			pipelineMonitor,
+			&metrics.NoopUtilizationMonitor{})
 	}
 
 	a := auditor.NewNullAuditor()
