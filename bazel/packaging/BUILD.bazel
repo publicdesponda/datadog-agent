@@ -1,0 +1,120 @@
+load("@rules_pkg//:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "strip_prefix")
+load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
+load("//:bazel/rules/agent_config.bzl", "generate_config")
+
+AGENT_CORECHECKS = [
+    "container",
+    "containerd",
+    "container_image",
+    "container_lifecycle",
+    "cpu",
+    "cri",
+    "snmp",
+    "docker",
+    "file_handle",
+    "go_expvar",
+    "io",
+    "jmx",
+    "kubernetes_apiserver",
+    "load",
+    "memory",
+    "ntp",
+    "oom_kill",
+    "oracle",
+    "oracle-dbm",
+    "sbom",
+    "systemd",
+    "tcp_queue_length",
+    "uptime",
+    "winproc",
+    "jetson",
+    "telemetry",
+    "orchestrator_pod",
+    "orchestrator_ecs",
+    "cisco_sdwan",
+]
+# Agent, rtloader & python
+
+pkg_files(
+    name = "agent_bin",
+    srcs = ["//cmd/agent:agent"],
+    attributes = pkg_attributes(mode = "0755"),
+    prefix = "bin/agent",
+)
+
+pkg_files(
+    name = "rtloader_files",
+    srcs = ["//rtloader"],
+    prefix = "embedded",
+    strip_prefix = strip_prefix.from_pkg("rtloader"),
+)
+
+pkg_files(
+    name = "python3_files",
+    srcs = ["@python3"],
+    prefix = "embedded",
+    strip_prefix = strip_prefix.from_pkg("python3"),
+)
+
+pkg_filegroup(
+    name = "agent_installation",
+    srcs = [
+        ":agent_bin",
+        ":python3_files",
+        ":rtloader_files",
+    ],
+    prefix = "/opt/datadog-agent",
+)
+
+# Config files
+
+generate_config(
+    name = "datadog_yaml",
+    out = "datadog.yaml",
+    build_type = "agent-py3",
+)
+
+pkg_files(
+    name = "config_files",
+    srcs = [":datadog_yaml"] + glob(["dist/conf.d/%s.d/**" % check for check in AGENT_CORECHECKS]),
+    strip_prefix = strip_prefix.from_pkg(),
+    prefix = "/etc/datadog-agent"
+)
+
+# Init files
+
+
+pkg_files(
+    name = "upstart_init_files",
+    srcs = ["//bazel/packaging/init-scripts/upstart:upstart_debian.conf",
+            "//bazel/packaging/init-scripts/upstart:upstart_debian.process.conf"],
+    renames = {
+        "//bazel/packaging/init-scripts/upstart:upstart_debian.conf": "/etc/init/datadog-agent.conf",
+        "//bazel/packaging/init-scripts/upstart:upstart_debian.process.conf": "/etc/init/datadog-agent-process.conf"
+    },
+    strip_prefix = strip_prefix.from_pkg(),
+)
+
+
+pkg_tar(
+    name = "agent_tar",
+    srcs = [":agent_installation",
+            ":config_files",
+            ":upstart_init_files"],
+)
+
+pkg_deb(
+    name = "agent_deb",
+    data = ":agent_tar",
+    description = """Datadog Monitoring Agent
+The Datadog Monitoring Agent is a lightweight process that monitors system
+processes and services, and sends information back to your Datadog account.
+.
+This package installs and runs the advanced Agent daemon, which queues and
+forwards metrics from your applications as well as system services.
+.
+See http://www.datadoghq.com/ for more information""",
+    maintainer = "Datadog Packages <package@datadoghq.com>",
+    package = "datadog-agent",
+    version = "7.55.0",
+)
