@@ -273,6 +273,11 @@ static __always_inline int handle_skb_consume_udp(struct sock *sk, struct sk_buf
         log_debug("ERR(skb_consume_udp): error reading tuple ret=%d", data_len);
         return 0;
     }
+
+    log_debug("skb_consume_udp: saddr=%llu sport=%u", t.saddr_l, t.sport);
+    log_debug("skb_consume_udp: daddr=%llu dport=%u", t.daddr_l, t.dport);
+    log_debug("skb_consume_udp: mark=%u", BPF_CORE_READ(skb, mark));
+
     // we are receiving, so we want the daddr to become the laddr
     flip_tuple(&t);
 
