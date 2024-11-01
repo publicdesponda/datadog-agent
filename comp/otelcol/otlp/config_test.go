@@ -167,7 +167,8 @@ func TestFromAgentConfigReceiver(t *testing.T) {
 							"max_recv_msg_size_mib": 10,
 						},
 						"http": map[string]interface{}{
-							"endpoint": "localhost:1234",
+							"endpoint":         "localhost:1234",
+							"include_metadata": false,
 							"cors": map[string]interface{}{
 								"allowed_origins": []interface{}{"http://test.com"},
 								"allowed_headers": []interface{}{"ExampleHeader"},
@@ -708,12 +709,21 @@ func TestFromAgentConfigDebug(t *testing.T) {
 			path:      "debug/empty_but_set_debug.yaml",
 			shouldSet: true,
 			cfg: PipelineConfig{
-				OTLPReceiverConfig: map[string]interface{}{},
-				TracePort:          5003,
-				MetricsEnabled:     true,
-				TracesEnabled:      true,
-				LogsEnabled:        false,
-				Debug:              map[string]interface{}{},
+				OTLPReceiverConfig: map[string]interface{}{
+					"protocols": map[string]interface{}{
+						"grpc": map[string]interface{}{
+							"include_metadata": false,
+						},
+						"http": map[string]interface{}{
+							"include_metadata": false,
+						},
+					},
+				},
+				TracePort:      5003,
+				MetricsEnabled: true,
+				TracesEnabled:  true,
+				LogsEnabled:    false,
+				Debug:          map[string]interface{}{},
 				Metrics: map[string]interface{}{
 					"enabled":                 true,
 					"tag_cardinality":         "low",
@@ -725,7 +735,16 @@ func TestFromAgentConfigDebug(t *testing.T) {
 			path:      "debug/verbosity_detailed.yaml",
 			shouldSet: true,
 			cfg: PipelineConfig{
-				OTLPReceiverConfig: map[string]interface{}{},
+				OTLPReceiverConfig: map[string]interface{}{
+					"protocols": map[string]interface{}{
+						"grpc": map[string]interface{}{
+							"include_metadata": false,
+						},
+						"http": map[string]interface{}{
+							"include_metadata": false,
+						},
+					},
+				},
 
 				TracePort:      5003,
 				MetricsEnabled: true,
@@ -743,7 +762,16 @@ func TestFromAgentConfigDebug(t *testing.T) {
 			path:      "debug/verbosity_none.yaml",
 			shouldSet: false,
 			cfg: PipelineConfig{
-				OTLPReceiverConfig: map[string]interface{}{},
+				OTLPReceiverConfig: map[string]interface{}{
+					"protocols": map[string]interface{}{
+						"grpc": map[string]interface{}{
+							"include_metadata": false,
+						},
+						"http": map[string]interface{}{
+							"include_metadata": false,
+						},
+					},
+				},
 
 				TracePort:      5003,
 				MetricsEnabled: true,
@@ -761,7 +789,16 @@ func TestFromAgentConfigDebug(t *testing.T) {
 			path:      "debug/verbosity_normal.yaml",
 			shouldSet: true,
 			cfg: PipelineConfig{
-				OTLPReceiverConfig: map[string]interface{}{},
+				OTLPReceiverConfig: map[string]interface{}{
+					"protocols": map[string]interface{}{
+						"grpc": map[string]interface{}{
+							"include_metadata": false,
+						},
+						"http": map[string]interface{}{
+							"include_metadata": false,
+						},
+					},
+				},
 
 				TracePort:      5003,
 				MetricsEnabled: true,
