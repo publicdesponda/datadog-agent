@@ -240,6 +240,7 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 
 		deviceDiagnosis := d.diagnoses.Report()
 
+		fmt.Printf("DEVICE CONFIG %+v", d.config.ReverseDNSEnrichment)
 		d.sender.ReportNetworkDeviceMetadata(d.config, values, deviceMetadataTags, collectionTime, deviceStatus, pingStatus, deviceDiagnosis, d.rdnsquerier)
 	}
 

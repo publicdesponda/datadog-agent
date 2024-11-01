@@ -1798,8 +1798,16 @@ metric_tags:
 	sess.On("GetNext", []string{"1.0"}).Return(&gosnmplib.MockValidReachableGetNextPacket, nil)
 	sess.On("Get", []string{"1.3.6.1.2.1.1.2.0"}).Return(&discoveryPacket, nil)
 
-	err := chk.Configure(senderManager, integration.FakeConfigHash, rawInstanceConfig, []byte(``), "test")
+	// language=yaml
+	rawInitConfig := []byte(`
+reverse_dns_enrichment:
+  enabled: true
+  timeout: 5000
+`)
+	err := chk.Configure(senderManager, integration.FakeConfigHash, rawInstanceConfig, rawInitConfig, "test")
 	assert.Nil(t, err)
+
+	fmt.Println("CHECK CONFIG RDNS ENABLED", chk.config.ReverseDNSEnrichment.Enabled)
 
 	_, err = waitForDiscoveredDevices(chk.discovery, 4, 2*time.Second)
 	if err != nil {
@@ -1993,6 +2001,7 @@ metric_tags:
 		{ipAddress: "10.10.0.3", deviceID: "default:10.10.0.3"},
 	}
 
+	fmt.Println("CHECK CONFIG RDNS ENABLED 2", chk.config.ReverseDNSEnrichment.Enabled)
 	err = chk.Run()
 	assert.Nil(t, err)
 

@@ -93,6 +93,7 @@ type InitConfig struct {
 	PingConfig                   snmpintegration.PackedPingConfig  `yaml:"ping"`
 	DetectMetricsEnabled         Boolean                           `yaml:"experimental_detect_metrics_enabled"`
 	DetectMetricsRefreshInterval int                               `yaml:"experimental_detect_metrics_refresh_interval"`
+	ReverseDNSEnrichment         snmpintegration.RDNSConfig        `yaml:"reverse_dns_enrichment"`
 }
 
 // InstanceConfig is used to deserialize integration instance config
@@ -212,8 +213,9 @@ type CheckConfig struct {
 	DiscoveryAllowedFailures int
 	InterfaceConfigs         []snmpintegration.InterfaceConfig
 
-	PingEnabled bool
-	PingConfig  pinger.Config
+	PingEnabled          bool
+	PingConfig           pinger.Config
+	ReverseDNSEnrichment snmpintegration.RDNSConfig
 }
 
 // SetProfile refreshes config based on profile
@@ -351,10 +353,14 @@ func NewCheckConfig(rawInstance integration.Data, rawInitConfig integration.Data
 	initConfig.CollectDeviceMetadata = true
 	initConfig.CollectTopology = true
 
+	fmt.Println("RAW INIT CONFIG", string(rawInitConfig))
+
 	err := yaml.Unmarshal(rawInitConfig, &initConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("INIT CONFIG %+v", initConfig)
 
 	err = yaml.Unmarshal(rawInstance, &instance)
 	if err != nil {
@@ -599,9 +605,18 @@ func NewCheckConfig(rawInstance integration.Data, rawInitConfig integration.Data
 		c.PingConfig.UseRawSocket = bool(*initConfig.PingConfig.Linux.UseRawSocket)
 	}
 
+	c.ReverseDNSEnrichment = initConfig.ReverseDNSEnrichment
+	// c.ReverseDNSEnrichment = snmpintegration.RDNSConfig{
+	// 	Enabled: true,
+	// 	Timeout: 5 * time.Second,
+	// }
+
 	c.UpdateDeviceIDAndTags()
 
 	c.ResolvedSubnetName = c.getResolvedSubnetName()
+
+	fmt.Printf("FINAL INIT CONFIG %+v", c)
+
 	return c, nil
 }
 

@@ -8,6 +8,7 @@ package report
 import (
 	"context"
 	json "encoding/json"
+	"fmt"
 	"net"
 	"sort"
 	"strconv"
@@ -52,11 +53,11 @@ var supportedDeviceTypes = map[string]bool{
 	"wlc":           true,
 }
 
-func hostnameEnrichment(metadata []devicemetadata.DeviceMetadata, rdnsquerier rdnsquerier.Component) []devicemetadata.DeviceMetadata {
+func hostnameEnrichment(metadata []devicemetadata.DeviceMetadata, rdnsquerier rdnsquerier.Component, timeout time.Duration) []devicemetadata.DeviceMetadata {
 	enrichedMetadata := make([]devicemetadata.DeviceMetadata, len(metadata))
 
 	for i, device := range metadata {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		hostname, err := rdnsquerier.GetHostname(ctx, device.IPAddress)
@@ -79,12 +80,21 @@ func (ms *MetricSender) ReportNetworkDeviceMetadata(config *checkconfig.CheckCon
 
 	metadataStore := buildMetadataStore(config.Metadata, store)
 	devices := []devicemetadata.DeviceMetadata{buildNetworkDeviceMetadata(config.DeviceID, config.DeviceIDTags, config, metadataStore, tags, deviceStatus, pingStatus)}
-	enrichedDevices := hostnameEnrichment(devices, rdnsquerier)
+	fmt.Println("config.ReverseDNSEnrichment.Enabled", config.ReverseDNSEnrichment.Enabled)
+	fmt.Println("config.ReverseDNSEnrichment.Enabled", config.ReverseDNSEnrichment.Enabled)
+	fmt.Println("config.ReverseDNSEnrichment.Enabled", config.ReverseDNSEnrichment.Enabled)
+	fmt.Println("config.ReverseDNSEnrichment.Enabled", config.ReverseDNSEnrichment.Enabled)
+
+	if config.ReverseDNSEnrichment.Enabled {
+		devices = hostnameEnrichment(devices, rdnsquerier, config.ReverseDNSEnrichment.Timeout)
+	}
+	// devices = hostnameEnrichment(devices, rdnsquerier, config.ReverseDNSEnrichment.Timeout)
+
 	interfaces := buildNetworkInterfacesMetadata(config.DeviceID, metadataStore)
 	ipAddresses := buildNetworkIPAddressesMetadata(config.DeviceID, metadataStore)
 	topologyLinks := buildNetworkTopologyMetadata(config.DeviceID, metadataStore, interfaces)
 
-	metadataPayloads := devicemetadata.BatchPayloads(config.Namespace, config.ResolvedSubnetName, collectTime, devicemetadata.PayloadMetadataBatchSize, enrichedDevices, interfaces, ipAddresses, topologyLinks, nil, diagnoses)
+	metadataPayloads := devicemetadata.BatchPayloads(config.Namespace, config.ResolvedSubnetName, collectTime, devicemetadata.PayloadMetadataBatchSize, devices, interfaces, ipAddresses, topologyLinks, nil, diagnoses)
 
 	for _, payload := range metadataPayloads {
 		payloadBytes, err := json.Marshal(payload)

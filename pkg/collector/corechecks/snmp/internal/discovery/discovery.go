@@ -177,6 +177,9 @@ func (d *Discovery) discoverDevices() {
 	}
 }
 
+// LOOK HERE
+// Auto discovery may use the instance config instead of init config???
+// We may want to use the top level config / agent config / global config
 func (d *Discovery) checkDevice(job checkDeviceJob) error {
 	deviceIP := job.currentIP.String()
 	config := *job.subnet.config // shallow copy
@@ -211,6 +214,7 @@ func (d *Discovery) checkDevice(job checkDeviceJob) error {
 	return nil
 }
 
+// LOOK HERE
 func (d *Discovery) createDevice(deviceDigest checkconfig.DeviceDigest, subnet *snmpSubnet, deviceIP string, writeCache bool) {
 	deviceCk, err := devicecheck.NewDeviceCheck(subnet.config, deviceIP, d.sessionFactory, d.rdnsquerier)
 	if err != nil {

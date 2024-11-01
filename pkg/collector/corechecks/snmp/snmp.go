@@ -156,6 +156,7 @@ func (c *Check) Configure(senderManager sender.SenderManager, integrationConfigD
 		return fmt.Errorf("common configure failed: %s", err)
 	}
 
+	// LOOK HERE
 	if c.config.IsDiscovery() {
 		c.discovery = discovery.NewDiscovery(c.config, c.sessionFactory, c.rdnsquerier)
 		c.discovery.Start()
