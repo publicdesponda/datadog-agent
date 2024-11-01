@@ -8,6 +8,7 @@ package awshost
 
 import (
 	"fmt"
+	remoteComp "github.com/DataDog/test-infra-definitions/components/remote"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
@@ -43,6 +44,7 @@ type ProvisionerParams struct {
 	extraConfigParams  runner.ConfigMap
 	installDocker      bool
 	installUpdater     bool
+	customResources    []func(ctx *pulumi.Context, host *remoteComp.Host, dependsOnResources ...pulumi.Resource) error
 }
 
 func newProvisionerParams() *ProvisionerParams {
@@ -98,6 +100,13 @@ func WithAgentOptions(opts ...agentparams.Option) ProvisionerOption {
 func WithAgentClientOptions(opts ...agentclientparams.Option) ProvisionerOption {
 	return func(params *ProvisionerParams) error {
 		params.agentClientOptions = append(params.agentClientOptions, opts...)
+		return nil
+	}
+}
+
+func WithCustomResources(customResources ...func(ctx *pulumi.Context, host *remoteComp.Host, dependsOnResources ...pulumi.Resource) error) ProvisionerOption {
+	return func(params *ProvisionerParams) error {
+		params.customResources = append(params.customResources, customResources...)
 		return nil
 	}
 }
@@ -197,6 +206,7 @@ func Run(ctx *pulumi.Context, env *environments.Host, runParams RunParams) error
 		return err
 	}
 
+	var dockerManager *docker.Manager
 	if params.installDocker {
 		// install the ECR credentials helper
 		// required to get pipeline agent images or other internally hosted images
@@ -205,7 +215,7 @@ func Run(ctx *pulumi.Context, env *environments.Host, runParams RunParams) error
 			return err
 		}
 
-		dockerManager, err := docker.NewManager(&awsEnv, host, utils.PulumiDependsOn(installEcrCredsHelperCmd))
+		dockerManager, err = docker.NewManager(&awsEnv, host, utils.PulumiDependsOn(installEcrCredsHelperCmd))
 
 		if err != nil {
 			return err
@@ -276,6 +286,13 @@ func Run(ctx *pulumi.Context, env *environments.Host, runParams RunParams) error
 	} else {
 		// Suite inits all fields by default, so we need to explicitly set it to nil
 		env.Agent = nil
+	}
+
+	for _, customResource := range params.customResources {
+		err = customResource(ctx, host, dockerManager)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
