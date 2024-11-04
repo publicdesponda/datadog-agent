@@ -65,6 +65,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // EventStream describes the interface implemented by reordered perf maps or ring buffers
@@ -158,6 +159,10 @@ type EBPFProbe struct {
 	// snapshot
 	ruleSetVersion    uint64
 	playSnapShotState *atomic.Bool
+
+	// debug pid
+	pids      []uint32
+	lastCheck time.Time
 }
 
 // GetProfileManager returns the Profile Managers
@@ -492,6 +497,29 @@ func (p *EBPFProbe) DispatchEvent(event *model.Event, notifyConsumers bool) {
 	// send event to specific event handlers, like the event monitor consumers, subsequently
 	if notifyConsumers {
 		p.probe.sendEventToConsumers(event)
+	}
+
+	if event.GetEventType() == model.ExecEventType {
+		p.pids = append(p.pids, event.Exec.Process.Pid)
+	}
+
+	if time.Now().After(p.lastCheck.Add(5 * time.Second)) {
+		log.Infof("check exec events")
+		p.Resolvers.ProcessResolver.Walk(func(entry *model.ProcessCacheEntry) {
+			if !entry.IsExec {
+				return
+			}
+			if !slices.Contains(p.pids, entry.Pid) {
+				log.Errorf("missing exec event : %+v", entry)
+			}
+		})
+		p.lastCheck = time.Now()
+	}
+
+	if event.GetEventType() == model.ExitEventType {
+		p.pids = slices.DeleteFunc(p.pids, func(pid uint32) bool {
+			return pid == event.Exit.Process.Pid
+		})
 	}
 
 	// handle anomaly detections
@@ -1792,6 +1820,7 @@ func NewEBPFProbe(probe *Probe, config *config.Config, opts Opts, telemetry tele
 		processKiller:        processKiller,
 		onDemandRateLimiter:  rate.NewLimiter(onDemandRate, 1),
 		playSnapShotState:    atomic.NewBool(false),
+		lastCheck:            time.Now(),
 	}
 
 	if err := p.detectKernelVersion(); err != nil {
