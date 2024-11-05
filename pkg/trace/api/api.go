@@ -256,25 +256,6 @@ func (r *HTTPReceiver) Start() {
 		ConnContext: connContext,
 	}
 
-	if r.conf.ReceiverPort > 0 {
-		addr := net.JoinHostPort(r.conf.ReceiverHost, strconv.Itoa(r.conf.ReceiverPort))
-		ln, err := r.listenTCP(addr)
-		if err != nil {
-			r.telemetryCollector.SendStartupError(telemetry.CantStartHttpServer, err)
-			killProcess("Error creating tcp listener: %v", err)
-		}
-		go func() {
-			defer watchdog.LogOnPanic(r.statsd)
-			if err := r.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-				log.Errorf("Could not start HTTP server: %v. HTTP receiver disabled.", err)
-				r.telemetryCollector.SendStartupError(telemetry.CantStartHttpServer, err)
-			}
-		}()
-		log.Infof("Listening for traces at http://%s", addr)
-	} else {
-		log.Debug("HTTP receiver disabled by config (apm_config.receiver_port: 0).")
-	}
-
 	if path := r.conf.ReceiverSocket; path != "" {
 		if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
 			ln, err := r.listenUnix(path)
@@ -313,6 +294,26 @@ func (r *HTTPReceiver) Start() {
 			}
 		}()
 		log.Infof("Listening for traces on Windows pipe %q. Security descriptor is %q", pipepath, secdec)
+	}
+
+	// Start the tcp listener last to avoid a race condition since the liveness probe only looks for the TCP port to be open.
+	if r.conf.ReceiverPort > 0 {
+		addr := net.JoinHostPort(r.conf.ReceiverHost, strconv.Itoa(r.conf.ReceiverPort))
+		ln, err := r.listenTCP(addr)
+		if err != nil {
+			r.telemetryCollector.SendStartupError(telemetry.CantStartHttpServer, err)
+			killProcess("Error creating tcp listener: %v", err)
+		}
+		go func() {
+			defer watchdog.LogOnPanic(r.statsd)
+			if err := r.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+				log.Errorf("Could not start HTTP server: %v. HTTP receiver disabled.", err)
+				r.telemetryCollector.SendStartupError(telemetry.CantStartHttpServer, err)
+			}
+		}()
+		log.Infof("Listening for traces at http://%s", addr)
+	} else {
+		log.Debug("HTTP receiver disabled by config (apm_config.receiver_port: 0).")
 	}
 
 	go func() {
