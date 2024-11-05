@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package otelagent
+package otlpingest
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
@@ -14,11 +14,11 @@ import (
 	"testing"
 )
 
-type otelAgentSpanReceiverV2TestSuite struct {
+type otelIngestSpanReceiverV2TestSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 }
 
-func TestOTelAgentSpanReceiverV2(t *testing.T) {
+func TestOTelIngestSpanReceiverV2(t *testing.T) {
 	values := `
 datadog:
   logs:
@@ -32,14 +32,14 @@ agents:
           value: 'enable_receive_resource_spans_v2'
 `
 	t.Parallel()
-	e2e.Run(t, &otelAgentSpanReceiverV2TestSuite{}, e2e.WithProvisioner(awskubernetes.KindProvisioner(awskubernetes.WithAgentOptions(kubernetesagentparams.WithoutDualShipping(), kubernetesagentparams.WithHelmValues(values), kubernetesagentparams.WithOTelAgent(), kubernetesagentparams.WithOTelConfig(minimalConfig)))))
+	e2e.Run(t, &otelIngestSpanReceiverV2TestSuite{}, e2e.WithProvisioner(awskubernetes.KindProvisioner(awskubernetes.WithAgentOptions(kubernetesagentparams.WithoutDualShipping(), kubernetesagentparams.WithHelmValues(values)))))
 }
 
-func (s *otelAgentSpanReceiverV2TestSuite) SetupSuite() {
+func (s *otelIngestSpanReceiverV2TestSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 	utils.TestSpanReceiverV2(s)
 }
 
-func (s *otelAgentSpanReceiverV2TestSuite) TestTracesWithSpanReceiverV2() {
+func (s *otelIngestSpanReceiverV2TestSuite) TestTracesWithSpanReceiverV2() {
 	utils.TestTracesWithSpanReceiverV2(s)
 }
