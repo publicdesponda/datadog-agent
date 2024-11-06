@@ -434,7 +434,7 @@ func (p *EBPFProbe) playSnapshot(notifyConsumers bool) {
 	var events []*model.Event
 
 	entryToEvent := func(entry *model.ProcessCacheEntry) {
-		if entry.Source != model.ProcessCacheEntryFromSnapshot && !entry.IsExec {
+		if entry.Source != model.ProcessCacheEntryFromSnapshot {
 			return
 		}
 		entry.Retain()
@@ -503,7 +503,7 @@ func (p *EBPFProbe) DispatchEvent(event *model.Event, notifyConsumers bool) {
 		p.pids = append(p.pids, event.Exec.Process.Pid)
 	}
 
-	if time.Now().After(p.lastCheck.Add(5 * time.Second)) {
+	if time.Now().After(p.lastCheck.Add(60 * time.Second)) {
 		log.Infof("check exec events")
 		p.Resolvers.ProcessResolver.Walk(func(entry *model.ProcessCacheEntry) {
 			if !entry.IsExec {
