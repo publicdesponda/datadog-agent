@@ -2,7 +2,7 @@
 # binary_build stage
 # Contains jobs which build various go binaries (dogstatsd, IoT agent, cluster-agent, cluster-agent-cloudfoundry).
 
-# include:
+include:
   # - .gitlab/binary_build/cluster_agent_cloudfoundry.yml
   # - .gitlab/binary_build/cluster_agent.yml
   # - .gitlab/binary_build/cws_instrumentation.yml
