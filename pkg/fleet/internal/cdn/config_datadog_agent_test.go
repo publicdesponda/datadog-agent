@@ -40,9 +40,19 @@ func TestConfig(t *testing.T) {
 
 	order := &orderConfig{
 		Order: []string{"base", "override"},
+		ScopeExpressions: []orderConfigExpression{
+			{
+				ConfigID:   "base",
+				Expression: "true",
+			},
+			{
+				ConfigID:   "override",
+				Expression: "true",
+			},
+		},
 	}
 
-	config, err := newAgentConfig(order, baseLayerRaw, overrideLayerRaw)
+	config, err := newAgentConfig(&expressionEnv{}, order, baseLayerRaw, overrideLayerRaw)
 	assert.NoError(t, err)
 	expectedConfig := doNotEditDisclaimer + `
 api_key: "1234"

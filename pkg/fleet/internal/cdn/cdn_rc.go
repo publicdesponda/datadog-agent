@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/remote-config/rctelemetryreporter/rctelemetryreporterimpl"
@@ -27,6 +28,7 @@ import (
 
 type cdnRC struct {
 	rcService           *remoteconfig.CoreAgentService
+	hostTagsGetter      hostTagsGetter
 	currentRootsVersion uint64
 	clientUUID          string
 	configDBPath        string
@@ -80,6 +82,7 @@ func newCDNRC(env *env.Env, configDBPath string) (CDN, error) {
 	}
 	cdn := &cdnRC{
 		rcService:           service,
+		hostTagsGetter:      ht,
 		currentRootsVersion: 1,
 		clientUUID:          uuid.New().String(),
 		configDBPath:        configDBPathTemp,
@@ -100,7 +103,15 @@ func (c *cdnRC) Get(ctx context.Context, pkg string) (cfg Config, err error) {
 		if err != nil {
 			return nil, err
 		}
-		cfg, err = newAgentConfig(orderConfig, layers...)
+		cfg, err = newAgentConfig(&expressionEnv{
+			OS:           runtime.GOOS,
+			Architecture: runtime.GOARCH,
+			Agent: &agentMetadata{
+				Version:  version.AgentVersion,
+				Hostname: hostname,
+				Tags:     c.hostTagsGetter.get(),
+			},
+		}, orderConfig, layers...)
 		if err != nil {
 			return nil, err
 		}

@@ -24,7 +24,22 @@ var (
 )
 
 type orderConfig struct {
-	Order []string `json:"order"`
+	Order            []string                `json:"order"`
+	ScopeExpressions []orderConfigExpression `json:"scope_expressions"`
+}
+
+type orderConfigExpression struct {
+	Expression string `json:"expression"`
+	ConfigID   string `json:"config_id"`
+}
+
+func (o *orderConfig) GetExpression(configID string) (string, bool) {
+	for _, e := range o.ScopeExpressions {
+		if e.ConfigID == configID {
+			return e.Expression, true
+		}
+	}
+	return "", false
 }
 
 // Config represents a configuration.

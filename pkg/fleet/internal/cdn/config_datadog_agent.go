@@ -17,6 +17,7 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/expr-lang/expr"
 	"gopkg.in/yaml.v2"
 )
 
@@ -28,6 +29,19 @@ const (
 	configSecurityAgentYAML = "security-agent.yaml"
 	configSystemProbeYAML   = "system-probe.yaml"
 )
+
+// agentMetadata represents the metadata of the agent for scope evaluation.
+type agentMetadata struct {
+	Version  string   `json:"version"`
+	Hostname string   `json:"hostname"`
+	Tags     []string `json:"tags"`
+}
+
+type expressionEnv struct {
+	OS           string
+	Architecture string
+	Agent        *agentMetadata
+}
 
 // agentConfig represents the agent configuration from the CDN.
 type agentConfig struct {
@@ -50,7 +64,7 @@ func (a *agentConfig) Version() string {
 	return a.version
 }
 
-func newAgentConfig(configOrder *orderConfig, rawLayers ...[]byte) (*agentConfig, error) {
+func newAgentConfig(expressionEnv *expressionEnv, configOrder *orderConfig, rawLayers ...[]byte) (*agentConfig, error) {
 	if configOrder == nil {
 		return nil, fmt.Errorf("order config is nil")
 	}
@@ -80,6 +94,21 @@ func newAgentConfig(configOrder *orderConfig, rawLayers ...[]byte) (*agentConfig
 		layerID := configOrder.Order[i]
 		layer, ok := layers[layerID]
 		if !ok {
+			continue
+		}
+		rawExpression, found := configOrder.GetExpression(layerID)
+		if !found {
+			continue
+		}
+		expression, err := expr.Compile(rawExpression, expr.Env(expressionEnv))
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile expression: %w", err)
+		}
+		expressionResult, err := expr.Run(expression, expressionEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to run expression: %w", err)
+		}
+		if !expressionResult.(bool) {
 			continue
 		}
 		layerIDs = append(layerIDs, layerID)
