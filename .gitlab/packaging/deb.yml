@@ -104,27 +104,27 @@ agent_deb-arm64-a7-fips:
     #   variables:
     #     DD_PROJECT: "agent"
 
-installer_deb-amd64:
-  extends: [.package_deb_common, .package_deb_x86, .package_deb_agent_7]
-  rules:
-    - !reference [.except_mergequeue]
-    - when: on_success
-  needs: ["installer-amd64"]
-  variables:
-    DD_PROJECT: "installer"
-    # There are currently no files to check for in the installer so we
-    # explicitly disable the check
-    PACKAGE_REQUIRED_FILES_LIST: ""
-
-installer_deb-arm64:
-  extends: [.package_deb_common, .package_deb_arm64, .package_deb_agent_7]
-  rules:
-    - !reference [.except_mergequeue]
-    - when: on_success
-  needs: ["installer-arm64"]
-  variables:
-    DD_PROJECT: "installer"
-    PACKAGE_REQUIRED_FILES_LIST: ""
+    # installer_deb-amd64:
+    #   extends: [.package_deb_common, .package_deb_x86, .package_deb_agent_7]
+    #   rules:
+    #     - !reference [.except_mergequeue]
+    #     - when: on_success
+    #   needs: ["installer-amd64"]
+    #   variables:
+    #     DD_PROJECT: "installer"
+    #     # There are currently no files to check for in the installer so we
+    #     # explicitly disable the check
+    #     PACKAGE_REQUIRED_FILES_LIST: ""
+    #
+    # installer_deb-arm64:
+    #   extends: [.package_deb_common, .package_deb_arm64, .package_deb_agent_7]
+    #   rules:
+    #     - !reference [.except_mergequeue]
+    #     - when: on_success
+    #   needs: ["installer-arm64"]
+    #   variables:
+    #     DD_PROJECT: "installer"
+    #     PACKAGE_REQUIRED_FILES_LIST: ""
 
     # .package_iot_deb_common:
     #   extends: [.package_deb_agent_7]
