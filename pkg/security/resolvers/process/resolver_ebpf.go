@@ -45,6 +45,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	stime "github.com/DataDog/datadog-agent/pkg/util/ktime"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -1245,7 +1246,13 @@ func (p *EBPFResolver) setAncestor(pce *model.ProcessCacheEntry) {
 func (p *EBPFResolver) newEntryFromProcfsAndSyncKernelMaps(proc *process.Process, filledProc *utils.FilledProcess, source uint64, newEntryCb func(*model.ProcessCacheEntry, error)) *model.ProcessCacheEntry {
 	pid := uint32(proc.Pid)
 
-	entry := p.NewProcessCacheEntry(model.PIDContext{Pid: pid, Tid: pid})
+	// Check if an entry is already in cache for the given pid.
+	entry := p.entryCache[pid]
+	if entry != nil {
+		log.Debugf("fallback synccache(%d): %v => %v", source, entry, filledProc)
+	}
+
+	entry = p.NewProcessCacheEntry(model.PIDContext{Pid: pid, Tid: pid})
 
 	// update the cache entry
 	if err := p.enrichEventFromProc(entry, proc, filledProc); err != nil {
