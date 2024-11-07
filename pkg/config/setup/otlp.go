@@ -86,6 +86,7 @@ func setupOTLPEnvironmentVariables(config pkgconfigmodel.Setup) {
 	config.BindEnv(OTLPSection + ".metrics.instrumentation_library_metadata_as_tags")
 	config.BindEnv(OTLPSection + ".metrics.instrumentation_scope_metadata_as_tags")
 	config.BindEnv(OTLPSection + ".metrics.tag_cardinality")
+	config.BindEnv(OTLPMetrics + ".histograms")
 	config.BindEnv(OTLPSection + ".metrics.histograms.mode")
 	config.BindEnv(OTLPSection + ".metrics.histograms.send_count_sum_metrics")
 	config.BindEnv(OTLPSection + ".metrics.histograms.send_aggregation_metrics")

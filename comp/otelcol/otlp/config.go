@@ -21,7 +21,6 @@ import (
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/config/structure"
 	"github.com/DataDog/datadog-agent/pkg/util"
-	"github.com/go-viper/mapstructure/v2"
 )
 
 func portToUint(v int) (port uint, err error) {
@@ -86,12 +85,11 @@ func FromAgentConfig(cfg config.Reader) (PipelineConfig, error) {
 	if !metricsEnabled && !tracesEnabled && !logsEnabled {
 		errs = append(errs, fmt.Errorf("at least one OTLP signal needs to be enabled"))
 	}
-	var x *serializerexporter.MetricsConfig
-	err = structure.UnmarshalKey(cfg, coreconfig.OTLPMetrics, &x)
+	var x serializerexporter.MetricsConfig
+	err = structure.UnmarshalKey(cfg, coreconfig.OTLPMetrics, &x, structure.ConvertEmptyStringToNil, structure.EnableSquash)
 	if err != nil {
 		return PipelineConfig{}, fmt.Errorf("error unmarshaling metrics config: %w", err)
 	}
-	fmt.Printf("x: %#v\n", x)
 	if x.APMStatsReceiverAddr == "" {
 		x.APMStatsReceiverAddr = fmt.Sprintf("http://localhost:%s/v0.6/stats", coreconfig.Datadog().GetString("apm_config.receiver_port"))
 	}
@@ -100,13 +98,24 @@ func FromAgentConfig(cfg config.Reader) (PipelineConfig, error) {
 	if x.Tags == "" {
 		x.Tags = tags
 	}
+	key := coreconfig.OTLPMetrics + ".histograms"
 
+	hm := cfg.Get(key + ".mode")
+	fmt.Printf("hm: %v\n", hm)
+	h := make(map[string]interface{})
+	err = structure.UnmarshalKey(cfg, key, &h)
+	if err != nil {
+		return PipelineConfig{}, fmt.Errorf("error unmarshaling metrics config: %w", err)
+	}
+	fmt.Printf("x: %#v\n", x)
+	fmt.Printf("h: %#v\n", h)
 	metricsConfigMap := make(map[string]interface{})
 
-	err = mapstructure.Decode(x, &metricsConfigMap)
+	err = structure.UnmarshalKey(cfg, coreconfig.OTLPMetrics, &metricsConfigMap)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("error decoding metrics config: %w", err))
 	}
+	fmt.Printf("metricsConfigMap: %#v\n", metricsConfigMap)
 	debugConfig := readConfigSection(cfg, coreconfig.OTLPDebug)
 
 	return PipelineConfig{
@@ -117,7 +126,7 @@ func FromAgentConfig(cfg config.Reader) (PipelineConfig, error) {
 		LogsEnabled:        logsEnabled,
 		Metrics:            metricsConfigMap,
 		Debug:              debugConfig.ToStringMap(),
-		MetricsConfig:      x,
+		MetricsConfig:      &x,
 	}, multierr.Combine(errs...)
 }
 
