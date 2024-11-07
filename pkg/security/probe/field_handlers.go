@@ -76,7 +76,7 @@ func getProcessService(config *config.Config, entry *model.ProcessCacheEntry) (s
 }
 
 type pceResolver interface {
-	ResolveProcessCacheEntry(ev *model.Event) (*model.ProcessCacheEntry, bool)
+	ResolveProcessCacheEntry(ev *model.Event, newEntryCb func(*model.ProcessCacheEntry, error)) (*model.ProcessCacheEntry, bool)
 }
 
 func resolveService(cfg *config.Config, fh pceResolver, ev *model.Event, e *model.BaseEvent) string {
@@ -84,7 +84,7 @@ func resolveService(cfg *config.Config, fh pceResolver, ev *model.Event, e *mode
 		return e.Service
 	}
 
-	entry, _ := fh.ResolveProcessCacheEntry(ev)
+	entry, _ := fh.ResolveProcessCacheEntry(ev, nil)
 	if entry == nil {
 		return ""
 	}
