@@ -17,8 +17,11 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/exporter/serializerexporter"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config/setup"
+	"github.com/DataDog/datadog-agent/pkg/config/structure"
 	"github.com/DataDog/datadog-agent/pkg/util"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 func portToUint(v int) (port uint, err error) {
@@ -83,18 +86,27 @@ func FromAgentConfig(cfg config.Reader) (PipelineConfig, error) {
 	if !metricsEnabled && !tracesEnabled && !logsEnabled {
 		errs = append(errs, fmt.Errorf("at least one OTLP signal needs to be enabled"))
 	}
-	metricsConfig := readConfigSection(cfg, coreconfig.OTLPMetrics)
-	metricsConfigMap := metricsConfig.ToStringMap()
-
-	if _, ok := metricsConfigMap["apm_stats_receiver_addr"]; !ok {
-		metricsConfigMap["apm_stats_receiver_addr"] = fmt.Sprintf("http://localhost:%s/v0.6/stats", coreconfig.Datadog().GetString("apm_config.receiver_port"))
+	var x *serializerexporter.MetricsConfig
+	err = structure.UnmarshalKey(cfg, coreconfig.OTLPMetrics, &x)
+	if err != nil {
+		return PipelineConfig{}, fmt.Errorf("error unmarshaling metrics config: %w", err)
+	}
+	fmt.Printf("x: %#v\n", x)
+	if x.APMStatsReceiverAddr == "" {
+		x.APMStatsReceiverAddr = fmt.Sprintf("http://localhost:%s/v0.6/stats", coreconfig.Datadog().GetString("apm_config.receiver_port"))
 	}
 
 	tags := strings.Join(util.GetStaticTagsSlice(context.TODO()), ",")
-	if tags != "" {
-		metricsConfigMap["tags"] = tags
+	if x.Tags == "" {
+		x.Tags = tags
 	}
 
+	metricsConfigMap := make(map[string]interface{})
+
+	err = mapstructure.Decode(x, &metricsConfigMap)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("error decoding metrics config: %w", err))
+	}
 	debugConfig := readConfigSection(cfg, coreconfig.OTLPDebug)
 
 	return PipelineConfig{
@@ -105,6 +117,7 @@ func FromAgentConfig(cfg config.Reader) (PipelineConfig, error) {
 		LogsEnabled:        logsEnabled,
 		Metrics:            metricsConfigMap,
 		Debug:              debugConfig.ToStringMap(),
+		MetricsConfig:      x,
 	}, multierr.Combine(errs...)
 }
 

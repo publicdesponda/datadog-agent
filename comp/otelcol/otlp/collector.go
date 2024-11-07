@@ -95,7 +95,6 @@ func (t *tagEnricher) Enrich(_ context.Context, extraTags []string, dimensions *
 }
 
 func generateID(group, resource, namespace, name string) string {
-
 	return string(util.GenerateKubeMetadataEntityID(group, resource, namespace, name))
 }
 
@@ -174,7 +173,8 @@ type PipelineConfig struct {
 	// Debug contains debug configurations.
 	Debug map[string]interface{}
 	// Metrics contains configuration options for the serializer metrics exporter
-	Metrics map[string]interface{}
+	Metrics       map[string]interface{}
+	MetricsConfig *serializerexporter.MetricsConfig
 }
 
 // shouldSetLoggingSection returns whether debug logging is enabled.

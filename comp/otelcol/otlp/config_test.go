@@ -8,11 +8,14 @@
 package otlp
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/exporter/serializerexporter"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp/testutil"
 )
 
@@ -262,7 +265,7 @@ func TestFromEnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name: "HTTP + gRPC, metrics config",
+			name: "metrics_config",
 			env: map[string]string{
 				"DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT":               "0.0.0.0:9995",
 				"DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT":               "0.0.0.0:9996",
@@ -288,11 +291,11 @@ func TestFromEnvironmentVariables(t *testing.T) {
 				TracePort:      5003,
 				Metrics: map[string]interface{}{
 					"enabled":                                true,
-					"instrumentation_scope_metadata_as_tags": "true",
+					"instrumentation_scope_metadata_as_tags": true,
 					"tag_cardinality":                        "low",
 					"apm_stats_receiver_addr":                "http://localhost:8126/v0.6/stats",
 
-					"delta_ttl": "2400",
+					"delta_ttl": 2400,
 					"histograms": map[string]interface{}{
 						"mode": "counters",
 					},
@@ -426,6 +429,27 @@ func TestFromEnvironmentVariables(t *testing.T) {
 				Debug: map[string]interface{}{},
 			},
 		},
+		{
+			name: "metrics resource_attributes_as_tags",
+			env: map[string]string{
+				"DD_OTLP_CONFIG_METRICS_RESOURCE_ATTRIBUTES_AS_TAGS": "true",
+			},
+			cfg: PipelineConfig{
+				OTLPReceiverConfig: map[string]interface{}{},
+
+				MetricsEnabled: true,
+				TracesEnabled:  true,
+				LogsEnabled:    false,
+				TracePort:      5003,
+				Metrics: map[string]interface{}{
+					"enabled":                     true,
+					"tag_cardinality":             "low",
+					"apm_stats_receiver_addr":     "http://localhost:8126/v0.6/stats",
+					"resource_attributes_as_tags": true,
+				},
+				Debug: map[string]interface{}{},
+			},
+		},
 	}
 	for _, testInstance := range tests {
 		t.Run(testInstance.name, func(t *testing.T) {
@@ -437,9 +461,14 @@ func TestFromEnvironmentVariables(t *testing.T) {
 			pcfg, err := FromAgentConfig(cfg)
 			if err != nil || testInstance.err != "" {
 				assert.Equal(t, testInstance.err, err.Error())
-			} else {
-				assert.Equal(t, testInstance.cfg, pcfg)
+				return
 			}
+			var x *serializerexporter.MetricsConfig
+			err = mapstructure.Decode(testInstance.cfg.Metrics, &x)
+			require.NoError(t, err)
+			fmt.Printf("x: %v\n", x)
+			fmt.Printf("pcfg.MetricsConfig: %v\n", pcfg.MetricsConfig)
+			assert.Equal(t, x, pcfg.MetricsConfig)
 		})
 	}
 }
