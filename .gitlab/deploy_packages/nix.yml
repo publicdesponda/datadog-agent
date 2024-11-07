@@ -2,17 +2,17 @@
 #
 # Agent v7
 #
-deploy_packages_deb-x64-7:
-  extends: .deploy_packages_deb-7
-  needs: [ agent_deb-x64-a7 ]
-  variables:
-    PACKAGE_ARCH: amd64
-
-deploy_packages_deb-arm64-7:
-  extends: .deploy_packages_deb-7
-  needs: [ agent_deb-arm64-a7 ]
-  variables:
-    PACKAGE_ARCH: arm64
+# deploy_packages_deb-x64-7:
+#   extends: .deploy_packages_deb-7
+#   needs: [ agent_deb-x64-a7 ]
+#   variables:
+#     PACKAGE_ARCH: amd64
+#
+# deploy_packages_deb-arm64-7:
+#   extends: .deploy_packages_deb-7
+#   needs: [ agent_deb-arm64-a7 ]
+#   variables:
+#     PACKAGE_ARCH: arm64
 
 deploy_packages_deb-x64-7-fips:
   extends: .deploy_packages_deb-7

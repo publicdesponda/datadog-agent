@@ -119,12 +119,12 @@ datadog-agent-7-x64-custom-path-test:
     - !reference [.cache_omnibus_ruby_deps, cache]
 
 # build Agent 7 binaries for x86_64
-datadog-agent-7-x64:
-  extends: [.agent_build_common, .agent_build_x86, .agent_7_build]
-
-# build Agent 7 binaries for arm64
-datadog-agent-7-arm64:
-  extends: [.agent_build_common, .agent_build_arm64, .agent_7_build]
+# datadog-agent-7-x64:
+#   extends: [.agent_build_common, .agent_build_x86, .agent_7_build]
+#
+# # build Agent 7 binaries for arm64
+# datadog-agent-7-arm64:
+#   extends: [.agent_build_common, .agent_build_arm64, .agent_7_build]
 
 # build Agent 7 binaries for x86_64
 #datadog-ot-agent-7-x64:
