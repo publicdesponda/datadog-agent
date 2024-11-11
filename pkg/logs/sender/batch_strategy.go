@@ -91,7 +91,7 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 		pipelineName:    pipelineName,
 		clock:           clock,
 		pipelineMonitor: pipelineMonitor,
-		utilization:     pipelineMonitor.MakeUtilizationMonitor("strategy"),
+		utilization:     utilization,
 	}
 }
 

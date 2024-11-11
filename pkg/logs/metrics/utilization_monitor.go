@@ -6,6 +6,7 @@
 package metrics
 
 import (
+	"sync"
 	"time"
 
 	"github.com/VividCortex/ewma"
@@ -15,6 +16,7 @@ import (
 type UtilizationMonitor interface {
 	Start()
 	Stop()
+	GetUtilization() float64
 }
 
 // NoopUtilizationMonitor is a no-op implementation of UtilizationMonitor.
@@ -26,10 +28,16 @@ func (n *NoopUtilizationMonitor) Start() {}
 // Stop does nothing.
 func (n *NoopUtilizationMonitor) Stop() {}
 
+// GetUtilization returns 0.
+func (n *NoopUtilizationMonitor) GetUtilization() float64 {
+	return 0
+}
+
 // TelemetryUtilizationMonitor is a UtilizationMonitor that reports utilization metrics as telemetry.
 // Utilization is calculated as the ratio of time spent in use to the total time.
 // Utilization can change rapidly over time based on the workload. So the monitor samples the utilization over a given interval.
 type TelemetryUtilizationMonitor struct {
+	sync.Mutex
 	inUse      time.Duration
 	idle       time.Duration
 	startIdle  time.Time
@@ -54,12 +62,16 @@ func NewTelemetryUtilizationMonitor(name, instance string, interval time.Duratio
 
 // Start starts recording in-use time.
 func (u *TelemetryUtilizationMonitor) Start() {
+	u.Lock()
+	defer u.Unlock()
 	u.idle += time.Since(u.startIdle)
 	u.startInUse = time.Now()
 }
 
 // Stop stops recording in-use time and reports the utilization if the sample window is met.
 func (u *TelemetryUtilizationMonitor) Stop() {
+	u.Lock()
+	defer u.Unlock()
 	u.inUse += time.Since(u.startInUse)
 	u.startIdle = time.Now()
 	select {
@@ -71,4 +83,10 @@ func (u *TelemetryUtilizationMonitor) Stop() {
 	default:
 	}
 
+}
+
+func (u *TelemetryUtilizationMonitor) GetUtilization() float64 {
+	u.Lock()
+	defer u.Unlock()
+	return u.avg.Value()
 }

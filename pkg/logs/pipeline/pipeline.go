@@ -164,7 +164,7 @@ func getStrategy(inputChan chan *message.Message, outputChan chan *message.Paylo
 		if endpoints.Main.UseCompression {
 			encoder = sender.NewAdaptiveGzipContentEncoding(endpoints.Main.CompressionLevel, utilization)
 		}
-		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, serverless, flushWg, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder, pipelineMonitor)
+		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, serverless, flushWg, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder, pipelineMonitor, utilization)
 	}
 	return sender.NewStreamStrategy(inputChan, outputChan, sender.IdentityContentType)
 }
