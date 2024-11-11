@@ -51,7 +51,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/uuid v0.56.0-rc.3
 	github.com/Masterminds/semver v1.5.0
 	github.com/benbjohnson/clock v1.3.0
-	github.com/pkg/errors v0.9.1
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0
 	github.com/stretchr/testify v1.9.0
 	go.etcd.io/bbolt v1.3.7
@@ -94,6 +93,7 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/shirou/gopsutil/v3 v3.24.1 // indirect

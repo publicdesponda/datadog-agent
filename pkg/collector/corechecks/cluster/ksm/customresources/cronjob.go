@@ -15,10 +15,10 @@ package customresources
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
-	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +31,8 @@ import (
 	"k8s.io/kube-state-metrics/v2/pkg/customresource"
 	"k8s.io/kube-state-metrics/v2/pkg/metric"
 	generator "k8s.io/kube-state-metrics/v2/pkg/metric_generator"
+
+	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 )
 
 var (
@@ -350,7 +352,7 @@ func (f *cronjobv1beta1Factory) ListWatch(customResourceClient interface{}, ns s
 func getNextScheduledTime(schedule string, lastScheduleTime *metav1.Time, createdTime metav1.Time) (time.Time, error) {
 	sched, err := cron.ParseStandard(schedule)
 	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "Failed to parse cron job schedule '%s'", schedule)
+		return time.Time{}, fmt.Errorf("Failed to parse cron job schedule '%s': %w", schedule, err)
 	}
 	if !lastScheduleTime.IsZero() {
 		return sched.Next(lastScheduleTime.Time), nil

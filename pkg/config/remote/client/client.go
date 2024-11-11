@@ -11,6 +11,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -21,8 +22,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"github.com/pkg/errors"
 
 	"github.com/DataDog/datadog-agent/pkg/config/remote/meta"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
@@ -153,7 +152,7 @@ func (g *agentGRPCConfigFetcher) ClientGetConfigs(ctx context.Context, request *
 	// or that if it restarts that the auth token remains the same. Thus we need to do this every request.
 	token, err := g.authTokenFetcher()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not acquire agent auth token")
+		return nil, fmt.Errorf("could not acquire agent auth token: %w", err)
 	}
 
 	md := metadata.MD{

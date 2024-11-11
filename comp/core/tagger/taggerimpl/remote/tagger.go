@@ -9,6 +9,7 @@ package remote
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"

@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/DataDog/go-tuf/client"
@@ -176,12 +175,11 @@ func (c *CoreAgentClient) updateRepos(response *pbgo.LatestConfigsResponse) erro
 	c.configRemoteStore.update(response)
 	_, err = c.directorTUFClient.Update()
 	if err != nil {
-		return errors.Wrap(err, "failed updating director repository")
+		return fmt.Errorf("failed updating director repository: %w", err)
 	}
 	_, err = c.configTUFClient.Update()
 	if err != nil {
-		e := fmt.Sprintf("could not update config repository [%s]", configMetasUpdateSummary(response.ConfigMetas))
-		return errors.Wrap(err, e)
+		return fmt.Errorf("could not update config repository [%s]: %w", configMetasUpdateSummary(response.ConfigMetas), err)
 	}
 	return nil
 }
@@ -271,12 +269,12 @@ func (c *CDNClient) updateRepos(ctx context.Context) error {
 
 	_, err = c.directorTUFClient.Update()
 	if err != nil {
-		err = errors.Wrap(err, "failed updating director repository")
+		err = fmt.Errorf("failed updating director repository: %w", err)
 		return err
 	}
 	_, err = c.configTUFClient.Update()
 	if err != nil {
-		err = errors.Wrap(err, "could not update config repository")
+		err = fmt.Errorf("could not update config repository: %w", err)
 		return err
 	}
 	return nil

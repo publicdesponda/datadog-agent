@@ -6,11 +6,12 @@
 package uptane
 
 import (
+	"fmt"
 	"sync"
 
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // dbBucket contains the data of the bucket
@@ -227,7 +228,7 @@ func (t *transaction) get(bucketName string, path string) ([]byte, error) {
 	})
 
 	if len(data) == 0 {
-		err = errors.Wrapf(err, "File empty or not found: %s in bucket %s", path, bucketName)
+		err = fmt.Errorf("File empty or not found: %s in bucket %s: %w", path, bucketName, err)
 	}
 
 	return data, err

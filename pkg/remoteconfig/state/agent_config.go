@@ -7,10 +7,9 @@ package state
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
-
-	"github.com/pkg/errors"
 )
 
 const agentConfigOrderID = "configuration_order"
@@ -88,7 +87,7 @@ func parseConfigAgentConfigOrder(data []byte, metadata Metadata) (AgentConfigOrd
 func MergeRCAgentConfig(applyStatus func(cfgPath string, status ApplyStatus), updates map[string]RawConfig) (ConfigContent, error) {
 	var orderFile AgentConfigOrder
 	var hasError bool
-	var fullErr error
+	var allErrors []error
 	parsedLayers := map[string]AgentConfig{}
 
 	for configPath, c := range updates {
@@ -97,7 +96,7 @@ func MergeRCAgentConfig(applyStatus func(cfgPath string, status ApplyStatus), up
 		if len(matched) != 2 {
 			err = fmt.Errorf("config file path '%s' has wrong format", configPath)
 			hasError = true
-			fullErr = errors.Wrap(fullErr, err.Error())
+			allErrors = append(allErrors, err)
 			applyStatus(configPath, ApplyStatus{
 				State: ApplyStateError,
 				Error: err.Error(),
@@ -113,7 +112,7 @@ func MergeRCAgentConfig(applyStatus func(cfgPath string, status ApplyStatus), up
 			orderFile, err = parseConfigAgentConfigOrder(c.Config, c.Metadata)
 			if err != nil {
 				hasError = true
-				fullErr = errors.Wrap(fullErr, err.Error())
+				allErrors = append(allErrors, err)
 				applyStatus(configPath, ApplyStatus{
 					State: ApplyStateError,
 					Error: err.Error(),
@@ -138,7 +137,7 @@ func MergeRCAgentConfig(applyStatus func(cfgPath string, status ApplyStatus), up
 
 	// If there was at least one error, don't apply any config
 	if hasError || (len(orderFile.Config.Order) == 0 && len(orderFile.Config.InternalOrder) == 0) {
-		return ConfigContent{}, fullErr
+		return ConfigContent{}, errors.Join(allErrors...)
 	}
 
 	// Go through all the layers that were sent, and apply them one by one to the merged structure

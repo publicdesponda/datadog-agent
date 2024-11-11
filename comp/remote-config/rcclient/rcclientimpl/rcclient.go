@@ -9,11 +9,11 @@ package rcclientimpl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.uber.org/fx"
 
 	configcomp "github.com/DataDog/datadog-agent/comp/core/config"
@@ -360,7 +360,7 @@ func (rc rcClient) agentTaskUpdateCallback(updates map[string]state.RawConfig, a
 					State: state.ApplyStateUnacknowledged,
 				})
 
-				var err error
+				var allErrors []error
 				var processed bool
 				// Call all the listeners component
 				for _, l := range rc.taskListeners {
@@ -369,13 +369,10 @@ func (rc rcClient) agentTaskUpdateCallback(updates map[string]state.RawConfig, a
 					processed = oneProcessed || processed
 					if oneErr != nil {
 						pkglog.Errorf("Error while processing agent task %s: %s", configPath, oneErr)
-						if err == nil {
-							err = oneErr
-						} else {
-							err = errors.Wrap(oneErr, err.Error())
-						}
+						allErrors = append(allErrors, oneErr)
 					}
 				}
+				err := errors.Join(allErrors...)
 				if processed && err != nil {
 					// One failure
 					applyStateCallback(configPath, state.ApplyStatus{
