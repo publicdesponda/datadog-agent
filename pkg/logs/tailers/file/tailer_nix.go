@@ -58,7 +58,5 @@ func (t *Tailer) read() (int, error) {
 	t.lastReadOffset.Add(int64(n))
 	msg := decoder.NewInput(inBuf[:n])
 	t.decoder.InputChan <- msg
-	// t.decoderMonitor.Start()
-	// metrics.ReportComponentIngress(msg, "decoder", strconv.Itoa(t.pipelineID))
 	return n, nil
 }

@@ -146,7 +146,7 @@ type TailerOptions struct {
 func NewTailer(opts *TailerOptions) *Tailer {
 	var tagProvider tag.Provider
 	if opts.File.Source.Config().Identifier != "" {
-		tagProvider = tag.NewProvider(types.NewEntityID(types.ContainerID, opts.File.Source.Config().Identifier).String(), opts.TagAdder)
+		tagProvider = tag.NewProvider(types.NewEntityID(types.ContainerID, opts.File.Source.Config().Identifier), opts.TagAdder)
 	} else {
 		tagProvider = tag.NewLocalProvider([]string{})
 	}
@@ -366,13 +366,13 @@ func (t *Tailer) forwardMessages() {
 			continue
 		}
 
+		// XXX(remy): is it ok recreating a message like this here?
 		msg := message.NewMessage(output.GetContent(), origin, output.Status, output.IngestionTimestamp)
 		// Make the write to the output chan cancellable to be able to stop the tailer
 		// after a file rotation when it is stuck on it.
 		// We don't return directly to keep the same shutdown sequence that in the
 		// normal case.
 		select {
-		// XXX(remy): is it ok recreating a message like this here?
 		case t.outputChan <- msg:
 			t.PipelineMonitor.ReportComponentIngress(msg, "processor")
 		case <-t.forwardContext.Done():
