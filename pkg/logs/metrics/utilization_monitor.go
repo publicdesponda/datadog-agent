@@ -85,6 +85,7 @@ func (u *TelemetryUtilizationMonitor) Stop() {
 
 }
 
+// GetUtilization returns the average utilization over the sample window.
 func (u *TelemetryUtilizationMonitor) GetUtilization() float64 {
 	u.Lock()
 	defer u.Unlock()
