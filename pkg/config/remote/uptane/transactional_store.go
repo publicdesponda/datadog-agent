@@ -227,7 +227,7 @@ func (t *transaction) get(bucketName string, path string) ([]byte, error) {
 		return nil
 	})
 
-	if len(data) == 0 {
+	if len(data) == 0 && err != nil {
 		err = fmt.Errorf("File empty or not found: %s in bucket %s: %w", path, bucketName, err)
 	}
 
