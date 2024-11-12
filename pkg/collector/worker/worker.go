@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	utilizationtracker "github.com/DataDog/datadog-agent/pkg/util/utilization_tracker"
 )
 
 const (
@@ -122,7 +123,7 @@ func newWorkerWithOptions(
 func (w *Worker) Run() {
 	log.Debugf("Runner %d, worker %d: Ready to process checks...", w.runnerID, w.ID)
 
-	utilizationTracker := NewUtilizationTracker(w.Name, w.utilizationTickInterval)
+	utilizationTracker := utilizationtracker.NewUtilizationTracker(w.Name, w.utilizationTickInterval)
 	defer utilizationTracker.Stop()
 
 	startUtilizationUpdater(w.Name, utilizationTracker)
@@ -210,7 +211,7 @@ func (w *Worker) Run() {
 	log.Debugf("Runner %d, worker %d: Finished processing checks.", w.runnerID, w.ID)
 }
 
-func startUtilizationUpdater(name string, ut *UtilizationTracker) {
+func startUtilizationUpdater(name string, ut *utilizationtracker.UtilizationTracker) {
 	expvars.SetWorkerStats(name, &expvars.WorkerStats{
 		Utilization: 0.0,
 	})
@@ -229,7 +230,7 @@ func startUtilizationUpdater(name string, ut *UtilizationTracker) {
 	}()
 }
 
-func startTrackerTicker(ut *UtilizationTracker, interval time.Duration) func() {
+func startTrackerTicker(ut *utilizationtracker.UtilizationTracker, interval time.Duration) func() {
 	ticker := time.NewTicker(interval)
 	cancel := make(chan struct{}, 1)
 	done := make(chan struct{})

@@ -8,7 +8,7 @@ package metrics
 import (
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/collector/worker"
+	utilizationtracker "github.com/DataDog/datadog-agent/pkg/util/utilization_tracker"
 )
 
 // UtilizationMonitor is an interface for monitoring the utilization of a component.
@@ -36,14 +36,14 @@ func (n *NoopUtilizationMonitor) Cancel() {}
 type TelemetryUtilizationMonitor struct {
 	name     string
 	instance string
-	ut       *worker.UtilizationTracker
+	ut       *utilizationtracker.UtilizationTracker
 	cancel   func()
 }
 
 // NewTelemetryUtilizationMonitor creates a new TelemetryUtilizationMonitor.
 func NewTelemetryUtilizationMonitor(name, instance string) *TelemetryUtilizationMonitor {
 
-	utilizationTracker := worker.NewUtilizationTracker("", 60*time.Second)
+	utilizationTracker := utilizationtracker.NewUtilizationTracker("", 60*time.Second)
 	cancel := startTrackerTicker(utilizationTracker, 15*time.Second)
 
 	t := &TelemetryUtilizationMonitor{
@@ -72,7 +72,7 @@ func (u *TelemetryUtilizationMonitor) Cancel() {
 	u.ut.Stop()
 }
 
-func startTrackerTicker(ut *worker.UtilizationTracker, interval time.Duration) func() {
+func startTrackerTicker(ut *utilizationtracker.UtilizationTracker, interval time.Duration) func() {
 	ticker := time.NewTicker(interval)
 	cancel := make(chan struct{}, 1)
 	done := make(chan struct{})
