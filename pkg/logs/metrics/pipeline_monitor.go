@@ -7,7 +7,6 @@ package metrics
 
 import (
 	"sync"
-	"time"
 )
 
 // MeasurablePayload represents a payload that can be measured in bytes and count
@@ -58,16 +57,14 @@ func (n *NoopPipelineMonitor) MakeUtilizationMonitor(_ string) UtilizationMonito
 // TelemetryPipelineMonitor is a PipelineMonitor that reports capacity metrics to telemetry
 type TelemetryPipelineMonitor struct {
 	monitors   map[string]*CapacityMonitor
-	interval   time.Duration
 	instanceID string
 	lock       sync.RWMutex
 }
 
 // NewTelemetryPipelineMonitor creates a new pipeline monitort that reports capacity and utiilization metrics as telemetry
-func NewTelemetryPipelineMonitor(interval time.Duration, instanceID string) *TelemetryPipelineMonitor {
+func NewTelemetryPipelineMonitor(instanceID string) *TelemetryPipelineMonitor {
 	return &TelemetryPipelineMonitor{
 		monitors:   make(map[string]*CapacityMonitor),
-		interval:   interval,
 		instanceID: instanceID,
 		lock:       sync.RWMutex{},
 	}
@@ -99,7 +96,7 @@ func (c *TelemetryPipelineMonitor) ID() string {
 
 // MakeUtilizationMonitor creates a new utilization monitor for a component.
 func (c *TelemetryPipelineMonitor) MakeUtilizationMonitor(name string) UtilizationMonitor {
-	return NewTelemetryUtilizationMonitor(name, c.instanceID, c.interval)
+	return NewTelemetryUtilizationMonitor(name, c.instanceID)
 }
 
 // ReportComponentIngress reports the ingress of a payload to a component.
