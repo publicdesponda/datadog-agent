@@ -22,7 +22,6 @@ import (
 func newTracker(_ *testing.T) (*UtilizationTracker, *clock.Mock) {
 	clk := clock.NewMock()
 	ut := newUtilizationTrackerWithClock(
-		"worker",
 		100*time.Millisecond,
 		clk,
 	)
@@ -50,7 +49,7 @@ func TestUtilizationTracker(t *testing.T) {
 
 	clk.Add(300 * time.Millisecond)
 	// Ramp up the expected utilization
-	ut.CheckStarted()
+	ut.Started()
 	//nolint:revive // TODO(AML) Fix revive linter
 	old, new = new, <-ut.Output
 	require.Equal(t, old, new)
@@ -68,7 +67,7 @@ func TestUtilizationTracker(t *testing.T) {
 	require.Greater(t, new, old)
 
 	// Ramp down the expected utilization
-	ut.CheckFinished()
+	ut.Finished()
 	//nolint:revive // TODO(AML) Fix revive linter
 	old, new = new, <-ut.Output
 	require.Equal(t, old, new) //no time have passed
@@ -100,7 +99,7 @@ func TestUtilizationTrackerCheckLifecycle(t *testing.T) {
 
 	for idx := 0; idx < 3; idx++ {
 		// Ramp up utilization
-		ut.CheckStarted()
+		ut.Started()
 		//nolint:revive // TODO(AML) Fix revive linter
 		old, new = new, <-ut.Output
 		assert.Equal(t, old, new)
@@ -118,7 +117,7 @@ func TestUtilizationTrackerCheckLifecycle(t *testing.T) {
 		assert.Greater(t, new, old)
 
 		// Ramp down utilization
-		ut.CheckFinished()
+		ut.Finished()
 		//nolint:revive // TODO(AML) Fix revive linter
 		old, new = new, <-ut.Output
 		assert.Equal(t, new, old)
@@ -152,13 +151,13 @@ func TestUtilizationTrackerAccuracy(t *testing.T) {
 		totalMs := r.Int31n(100) + 100
 		runtimeMs := (totalMs * 30) / 100
 
-		ut.CheckStarted()
+		ut.Started()
 		<-ut.Output
 
 		runtimeDuration := time.Duration(runtimeMs) * time.Millisecond
 		clk.Add(runtimeDuration)
 
-		ut.CheckFinished()
+		ut.Finished()
 		val = <-ut.Output
 
 		idleDuration := time.Duration(totalMs-runtimeMs) * time.Millisecond

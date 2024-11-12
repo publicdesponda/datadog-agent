@@ -43,7 +43,7 @@ type TelemetryUtilizationMonitor struct {
 // NewTelemetryUtilizationMonitor creates a new TelemetryUtilizationMonitor.
 func NewTelemetryUtilizationMonitor(name, instance string) *TelemetryUtilizationMonitor {
 
-	utilizationTracker := utilizationtracker.NewUtilizationTracker("", 60*time.Second)
+	utilizationTracker := utilizationtracker.NewUtilizationTracker(15 * time.Second)
 	cancel := startTrackerTicker(utilizationTracker, 15*time.Second)
 
 	t := &TelemetryUtilizationMonitor{
@@ -58,12 +58,12 @@ func NewTelemetryUtilizationMonitor(name, instance string) *TelemetryUtilization
 
 // Start starts recording in-use time.
 func (u *TelemetryUtilizationMonitor) Start() {
-	u.ut.CheckStarted()
+	u.ut.Started()
 }
 
 // Stop stops recording in-use time and reports the utilization if the sample window is met.
 func (u *TelemetryUtilizationMonitor) Stop() {
-	u.ut.CheckFinished()
+	u.ut.Started()
 }
 
 // Cancel stops the monitor.

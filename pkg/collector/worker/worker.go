@@ -123,7 +123,7 @@ func newWorkerWithOptions(
 func (w *Worker) Run() {
 	log.Debugf("Runner %d, worker %d: Ready to process checks...", w.runnerID, w.ID)
 
-	utilizationTracker := utilizationtracker.NewUtilizationTracker(w.Name, w.utilizationTickInterval)
+	utilizationTracker := utilizationtracker.NewUtilizationTracker(w.utilizationTickInterval)
 	defer utilizationTracker.Stop()
 
 	startUtilizationUpdater(w.Name, utilizationTracker)
@@ -147,12 +147,12 @@ func (w *Worker) Run() {
 		expvars.AddRunningCheckCount(1)
 		expvars.SetRunningStats(check.ID(), checkStartTime)
 
-		utilizationTracker.CheckStarted()
+		utilizationTracker.Started()
 
 		// Run the check
 		checkErr := check.Run()
 
-		utilizationTracker.CheckFinished()
+		utilizationTracker.Finished()
 
 		expvars.DeleteRunningStats(check.ID())
 
