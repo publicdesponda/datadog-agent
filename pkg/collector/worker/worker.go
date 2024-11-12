@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	utilizationtracker "github.com/DataDog/datadog-agent/pkg/util/utilization_tracker"
+	"github.com/DataDog/datadog-agent/pkg/util/utilizationtracker"
 )
 
 const (

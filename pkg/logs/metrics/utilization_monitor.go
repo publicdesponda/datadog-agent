@@ -8,7 +8,7 @@ package metrics
 import (
 	"time"
 
-	utilizationtracker "github.com/DataDog/datadog-agent/pkg/util/utilization_tracker"
+	"github.com/DataDog/datadog-agent/pkg/util/utilizationtracker"
 )
 
 // UtilizationMonitor is an interface for monitoring the utilization of a component.

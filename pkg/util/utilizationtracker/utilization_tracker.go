@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+// Package utilizationtracker provides a utility to track the utilization of a component.
 package utilizationtracker
 
 import (
