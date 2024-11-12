@@ -218,6 +218,7 @@ func (n NodeType) Orchestrator() string {
 		K8sNetworkPolicy,
 		K8sLimitRange,
 		K8sStorageClass,
+		K8sPodDisruptionBudget,
 		K8sUnsetType:
 		return "k8s"
 	case ECSTask:

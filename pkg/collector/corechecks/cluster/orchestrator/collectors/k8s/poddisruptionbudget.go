@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors"
 	k8sProcessors "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors/k8s"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
+	"github.com/DataDog/datadog-agent/pkg/trace/log"
 )
 
 // NewPodDisruptionBudgetCollectorVersions builds the group of collector versions.
@@ -74,6 +75,7 @@ func (c *PodDisruptionBudgetCollector) Metadata() *collectors.CollectorMetadata 
 func (c *PodDisruptionBudgetCollector) Run(rcfg *collectors.CollectorRunConfig) (*collectors.CollectorRunResult, error) {
 	list, err := c.lister.List(labels.Everything())
 	if err != nil {
+		log.Warn("PodDisruptionBudgetCollector Failed to list PodDisruptionBudgets")
 		return nil, collectors.NewListingError(err)
 	}
 
@@ -82,6 +84,7 @@ func (c *PodDisruptionBudgetCollector) Run(rcfg *collectors.CollectorRunConfig) 
 	processResult, processed := c.processor.Process(ctx, list)
 
 	if processed == -1 {
+		log.Warn("PodDisruptionBudgetCollector Failed to process PodDisruptionBudgets")
 		return nil, collectors.ErrProcessingPanic
 	}
 
@@ -91,5 +94,6 @@ func (c *PodDisruptionBudgetCollector) Run(rcfg *collectors.CollectorRunConfig) 
 		ResourcesProcessed: processed,
 	}
 
+	log.Warn("/ Processed PodDisruptionBudgets, result: %+v", result)
 	return result, nil
 }

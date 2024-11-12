@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors"
 	k8sProcessors "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors/k8s"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
+	"github.com/DataDog/datadog-agent/pkg/trace/log"
 
 	"k8s.io/apimachinery/pkg/labels"
 	appsv1Informers "k8s.io/client-go/informers/apps/v1"
@@ -37,6 +38,7 @@ type DeploymentCollector struct {
 // NewDeploymentCollector creates a new collector for the Kubernetes Deployment
 // resource.
 func NewDeploymentCollector() *DeploymentCollector {
+	log.Warn("grepme - NewDeploymentCollector()")
 	return &DeploymentCollector{
 		metadata: &collectors.CollectorMetadata{
 			IsDefaultVersion:          true,
@@ -59,6 +61,7 @@ func (c *DeploymentCollector) Informer() cache.SharedInformer {
 
 // Init is used to initialize the collector.
 func (c *DeploymentCollector) Init(rcfg *collectors.CollectorRunConfig) {
+	log.Warn("grepme - DeploymentCollector.Init()")
 	c.informer = rcfg.OrchestratorInformerFactory.InformerFactory.Apps().V1().Deployments()
 	c.lister = c.informer.Lister()
 }
@@ -70,6 +73,7 @@ func (c *DeploymentCollector) Metadata() *collectors.CollectorMetadata {
 
 // Run triggers the collection process.
 func (c *DeploymentCollector) Run(rcfg *collectors.CollectorRunConfig) (*collectors.CollectorRunResult, error) {
+	log.Warnf("grepme - DeploymentCollector.Run(%v)", rcfg)
 	list, err := c.lister.List(labels.Everything())
 	if err != nil {
 		return nil, collectors.NewListingError(err)

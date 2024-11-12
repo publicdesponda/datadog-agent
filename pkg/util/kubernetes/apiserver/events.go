@@ -57,6 +57,7 @@ func (c *APIClient) RunEventCollection(resVer string, lastListTime time.Time, ev
 	// watch during 2 * timeout maximum and store where we are at.
 	timeoutParse := time.NewTimer(time.Duration(eventReadTimeout) * time.Second)
 	for {
+		log.Warn("grepme RunEventCollection()")
 		select {
 		case rcv, ok := <-evWatcher.ResultChan():
 			if !ok {
