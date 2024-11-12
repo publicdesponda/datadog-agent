@@ -134,7 +134,7 @@ func (ut *UtilizationTracker) Started() {
 	ut.eventsChan <- started
 }
 
-// Finnished should be invoked when a compnent's work is complete so that we can calculate the
+// Finished should be invoked when a compnent's work is complete so that we can calculate the
 // utilization of the compoennt.
 //
 // Produces one value on the Output channel.
