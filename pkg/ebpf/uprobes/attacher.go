@@ -436,7 +436,7 @@ func (ua *UprobeAttacher) Start() error {
 	}
 
 	if ua.name == "go-tls" {
-		log.Info("go-tls (attacher) with hooking check")
+		log.Info("go-tls (attacher, insert-related) with hooking check")
 	}
 
 	ua.wg.Add(1)
@@ -573,9 +573,9 @@ func (ua *UprobeAttacher) Check() error {
 		}
 
 		if _, found := ua.missed[pid]; found {
-			log.Warnf("go-tls (attacher): pid (%v) path (%v) neither hooked nor blocked - second+ time", pid, path)
+			log.Warnf("go-tls (attacher, insert-related): pid (%v) path (%v) neither hooked nor blocked - second+ time", pid, path)
 		} else {
-			log.Infof("go-tls (attacher): pid (%v) path (%v) neither hooked nor blocked - first time, not warning", pid, path)
+			log.Infof("go-tls (attacher, insert-related): pid (%v) path (%v) neither hooked nor blocked - first time, not warning", pid, path)
 			ua.missed[pid] = struct{}{}
 		}
 	}
