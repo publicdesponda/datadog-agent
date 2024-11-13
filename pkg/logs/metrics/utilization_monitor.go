@@ -63,7 +63,7 @@ func (u *TelemetryUtilizationMonitor) Start() {
 
 // Stop stops recording in-use time and reports the utilization if the sample window is met.
 func (u *TelemetryUtilizationMonitor) Stop() {
-	u.ut.Started()
+	u.ut.Finished()
 }
 
 // Cancel stops the monitor.
