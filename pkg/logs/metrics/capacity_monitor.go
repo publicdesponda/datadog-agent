@@ -23,17 +23,22 @@ type CapacityMonitor struct {
 	avgBytes     float64
 	name         string
 	instance     string
-	ticker       *time.Ticker
+	tickChan     <-chan time.Time
 }
 
 // NewCapacityMonitor creates a new CapacityMonitor
 func NewCapacityMonitor(name, instance string) *CapacityMonitor {
+	return newCapacityMonitorWithTick(name, instance, time.NewTicker(1*time.Second).C)
+}
+
+// newCapacityMonitorWithTick is used for testing.
+func newCapacityMonitorWithTick(name, instance string, tickChan <-chan time.Time) *CapacityMonitor {
 	return &CapacityMonitor{
 		name:     name,
 		instance: instance,
 		avgItems: 0,
 		avgBytes: 0,
-		ticker:   time.NewTicker(1 * time.Second),
+		tickChan: tickChan,
 	}
 }
 
@@ -58,7 +63,7 @@ func (i *CapacityMonitor) AddEgress(pl MeasurablePayload) {
 
 func (i *CapacityMonitor) sample() {
 	select {
-	case <-i.ticker.C:
+	case <-i.tickChan:
 		i.avgItems = ewma(float64(i.ingress-i.egress), i.avgItems)
 		i.avgBytes = ewma(float64(i.ingressBytes-i.egressBytes), i.avgBytes)
 		i.report()
