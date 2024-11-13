@@ -1514,7 +1514,8 @@ func logsagent(config pkgconfigmodel.Setup) {
 	config.BindEnvAndSetDefault("logs_config.dd_url_443", "agent-443-intake.logs.datadoghq.com")
 	config.BindEnvAndSetDefault("logs_config.stop_grace_period", 30)
 	config.BindEnvAndSetDefault("logs_config.message_channel_size", 100)
-	config.BindEnvAndSetDefault("logs_config.payload_channel_size", 10)
+	config.BindEnvAndSetDefault("logs_config.sender_channel_size", 5)
+	config.BindEnvAndSetDefault("logs_config.payload_channel_size", 5)
 
 	// maximum time that the unix tailer will hold a log file open after it has been rotated
 	config.BindEnvAndSetDefault("logs_config.close_timeout", 60)

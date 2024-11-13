@@ -61,7 +61,7 @@ func NewPipeline(outputChan chan *message.Payload,
 	mainDestinations := getDestinations(endpoints, destinationsContext, pipelineMonitor, serverless, senderDoneChan, status, cfg)
 
 	strategyInput := make(chan *message.Message, pkgconfigsetup.Datadog().GetInt("logs_config.message_channel_size"))
-	senderInput := make(chan *message.Payload, 1) // Only buffer 1 message since payloads can be large
+	senderInput := make(chan *message.Payload, pkgconfigsetup.Datadog().GetInt("logs_config.sender_channel_size")) // Only buffer 1 message since payloads can be large
 	flushChan := make(chan struct{})
 
 	var logsSender *sender.Sender
