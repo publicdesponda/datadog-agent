@@ -44,17 +44,19 @@ type UtilizationTracker struct {
 // calculates the values and publishes them to expvars
 func NewUtilizationTracker(
 	interval time.Duration,
+	alpha float64,
 ) *UtilizationTracker {
 	return newUtilizationTrackerWithClock(
 		interval,
 		clock.New(),
+		alpha,
 	)
 }
 
 // newUtilizationTrackerWithClock is primarely used for testing.
 // Does not start the background goroutines, so that the tests can call update() to get
 // deterministic results.
-func newUtilizationTrackerWithClock(interval time.Duration, clk clock.Clock) *UtilizationTracker {
+func newUtilizationTrackerWithClock(interval time.Duration, clk clock.Clock, alpha float64) *UtilizationTracker {
 	ut := &UtilizationTracker{
 		clock: clk,
 
@@ -62,9 +64,8 @@ func newUtilizationTrackerWithClock(interval time.Duration, clk clock.Clock) *Ut
 
 		nextTick: clk.Now(),
 		interval: interval,
-		alpha:    0.25, // converges to 99.98% of constant input in 30 iterations.
-
-		Output: make(chan float64, 1),
+		alpha:    alpha,
+		Output:   make(chan float64, 1),
 	}
 
 	go ut.run()

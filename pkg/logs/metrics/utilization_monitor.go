@@ -43,8 +43,8 @@ type TelemetryUtilizationMonitor struct {
 // NewTelemetryUtilizationMonitor creates a new TelemetryUtilizationMonitor.
 func NewTelemetryUtilizationMonitor(name, instance string) *TelemetryUtilizationMonitor {
 
-	utilizationTracker := utilizationtracker.NewUtilizationTracker(15 * time.Second)
-	cancel := startTrackerTicker(utilizationTracker, 15*time.Second)
+	utilizationTracker := utilizationtracker.NewUtilizationTracker(1*time.Second, ewmaAlpha)
+	cancel := startTrackerTicker(utilizationTracker, 1*time.Second)
 
 	t := &TelemetryUtilizationMonitor{
 		name:     name,

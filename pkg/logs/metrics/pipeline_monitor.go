@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+const ewmaAlpha = 0.064
+
 // MeasurablePayload represents a payload that can be measured in bytes and count
 type MeasurablePayload interface {
 	Size() int64

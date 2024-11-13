@@ -24,6 +24,7 @@ func newTracker(_ *testing.T) (*UtilizationTracker, *clock.Mock) {
 	ut := newUtilizationTrackerWithClock(
 		100*time.Millisecond,
 		clk,
+		0.25,
 	)
 
 	return ut, clk
