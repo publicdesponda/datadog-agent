@@ -552,6 +552,7 @@ func (ec *EventConsumer) Stop() {
 // EventTypes returns the event types handled by this consumer
 func (ec *EventConsumer) EventTypes() []model.EventType {
 	return []model.EventType{
+		model.ForkEventType,
 		model.ExecEventType,
 		model.ExitEventType,
 	}
@@ -566,6 +567,7 @@ func (ec *EventConsumer) HandleEvent(event any) {
 
 	processMonitor.tel.events.Add(1)
 	switch sevent.Type {
+	case model.ForkEventType:
 	case model.ExecEventType:
 		processMonitor.tel.exec.Add(1)
 		if processMonitor.hasExecCallbacks.Load() {
