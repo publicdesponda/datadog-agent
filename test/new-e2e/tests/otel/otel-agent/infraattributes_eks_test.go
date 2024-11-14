@@ -30,6 +30,24 @@ datadog:
   logs:
     containerCollectAll: false
     containerCollectUsingFiles: false
+  kubelet:
+    tlsVerify: false
+  namespaceLabelsAsTags:
+    kubernetes.io/metadata.name: name
+  kubernetesResourcesLabelsAsTags:
+    deployments.apps:
+      foo: bar
+  clusterTagger:
+    collectKubernetesTags: true
+  processAgent:
+    processCollection: true
+    runInCoreAgent: true
+agents:
+  containers:
+    agent:
+      env:
+        - name: DD_LANGUAGE_DETECTION_ENABLED
+          value: 'true'
 `
 	t.Parallel()
 	e2e.Run(t, &iaEKSTestSuite{}, e2e.WithProvisioner(awskubernetes.EKSProvisioner(awskubernetes.WithEKSOptions(eks.WithLinuxNodeGroup()), awskubernetes.WithAgentOptions(kubernetesagentparams.WithoutDualShipping(), kubernetesagentparams.WithHelmValues(values), kubernetesagentparams.WithOTelAgent(), kubernetesagentparams.WithOTelConfig(iaConfig)))))
