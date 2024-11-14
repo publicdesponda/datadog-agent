@@ -430,13 +430,11 @@ func (p *EBPFProbe) playSnapshot(notifyConsumers bool) {
 
 	entryToEvent := func(entry *model.ProcessCacheEntry) {
 		if entry.Source != model.ProcessCacheEntryFromSnapshot {
-			seclog.Debugf("snapshot skip pid source %v %v", entry.Process.Pid, entry.Source)
 			return
 		}
 		entry.Retain()
 
 		event := newEBPFEventFromPCE(entry, p.fieldHandlers)
-		seclog.Debugf("snapshot pid %v isExec %v", entry.Process.Pid, entry.IsExec)
 
 		if _, err := entry.HasValidLineage(); err != nil {
 			event.Error = &model.ErrProcessBrokenLineage{Err: err}

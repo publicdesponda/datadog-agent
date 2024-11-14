@@ -569,7 +569,6 @@ func (ec *EventConsumer) HandleEvent(event any) {
 	case model.ExecEventType:
 		processMonitor.tel.exec.Add(1)
 		if processMonitor.hasExecCallbacks.Load() {
-			log.Info("exe pid", sevent.Pid)
 			processMonitor.handleProcessExec(sevent.Pid)
 		}
 	case model.ExitEventType:
