@@ -41,7 +41,7 @@ func newCDNRC(env *env.Env, configDBPath string) (CDN, error) {
 	ctx, cc := context.WithTimeout(ctx, 10*time.Second)
 	defer cc()
 
-	ht := newHostTagsGetter()
+	ht := newHostTagsGetter(env)
 	hostname, err := pkghostname.Get(ctx)
 	if err != nil {
 		hostname = "unknown"
@@ -94,7 +94,13 @@ func newCDNRC(env *env.Env, configDBPath string) (CDN, error) {
 func (c *cdnRC) Get(ctx context.Context, pkg string) (cfg Config, err error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "cdn.Get")
 	span.SetTag("cdn_type", "remote_config")
-	defer func() { span.Finish(tracer.WithError(err)) }()
+	defer func() {
+		spanErr := err
+		if spanErr == ErrProductNotSupported {
+			spanErr = nil
+		}
+		span.Finish(tracer.WithError(spanErr))
+	}()
 
 	switch pkg {
 	case "datadog-agent":
