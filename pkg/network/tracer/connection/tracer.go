@@ -24,9 +24,9 @@ type TracerType int
 const (
 	TracerTypeKProbePrebuilt        TracerType = iota //nolint:revive // TODO
 	TracerTypeKProbeRuntimeCompiled                   //nolint:revive // TODO
-	TracerTypeKProbeCORE
-	TracerTypeFentry
-	TracerTypeEbpfless
+	TracerTypeKProbeCORE                              //nolint:revive // TODO
+	TracerTypeFentry                                  //nolint:revive // TODO
+	TracerTypeEbpfless                                //nolint:revive // TODO
 )
 
 const (

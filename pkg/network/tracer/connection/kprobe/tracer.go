@@ -35,7 +35,7 @@ type TracerType int //nolint:revive // TODO
 const (
 	TracerTypePrebuilt        TracerType = iota //nolint:revive // TODO
 	TracerTypeRuntimeCompiled                   //nolint:revive // TODO
-	TracerTypeCORE
+	TracerTypeCORE                              //nolint:revive // TODO
 )
 
 var (
