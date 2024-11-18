@@ -27,8 +27,9 @@ var (
 	host    string
 )
 
+//nolint:typecheck // TODO pattern latency/bin: no matching files found (typecheck)
 //go:embed latency/bin
-var benchLatencyhFS embed.FS //nolint:typecheck // TODO pattern latency/bin: no matching files found (typecheck)
+var benchLatencyhFS embed.FS
 
 // modified version of testModule.CreateWithOption, to be able to call it without testing module
 func CreateWithOptions(tb testing.TB, filename string, user, group, mode int) (string, unsafe.Pointer, error) {
