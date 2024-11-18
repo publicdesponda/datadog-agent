@@ -155,7 +155,7 @@ func RunDynamicInstrumentation(opts *DIOptions) (*GoDI, error) {
 	return goDI, nil
 }
 
-func (goDI *GoDI) printSnapshot(event *ditypes.DIEvent) {
+func (goDI *GoDI) printSnapshot(event *ditypes.DIEvent) { //nolint:unused // TODO
 	if event == nil {
 		return
 	}

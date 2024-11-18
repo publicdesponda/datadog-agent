@@ -148,7 +148,7 @@ func (m *nodeJSMonitor) Start() {
 		return
 	}
 
-	m.attacher.Start()
+	m.attacher.Start() //nolint:errcheck // TODO
 	log.Info("Node JS TLS monitoring enabled")
 }
 

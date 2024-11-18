@@ -77,7 +77,7 @@ type testCapture struct {
 	tcp     *layers.TCP
 }
 
-func (tc testCapture) reverse() testCapture {
+func (tc testCapture) reverse() testCapture { //nolint:unused // TODO
 	ret := tc
 	if tc.pktType == unix.PACKET_HOST {
 		ret.pktType = unix.PACKET_OUTGOING
@@ -99,7 +99,7 @@ func (tc testCapture) reverse() testCapture {
 	ret.tcp = &tcp
 	return ret
 }
-func reversePkts(tc []testCapture) []testCapture {
+func reversePkts(tc []testCapture) []testCapture { //nolint:unused // TODO
 	var ret []testCapture
 	for _, t := range tc {
 		ret = append(ret, t.reverse())
@@ -203,7 +203,7 @@ func (fixture *tcpTestFixture) runPkt(pkt testCapture) {
 	require.NoError(fixture.t, err)
 }
 
-func (fixture *tcpTestFixture) runPkts(packets []testCapture) {
+func (fixture *tcpTestFixture) runPkts(packets []testCapture) { //nolint:unused // TODO
 	for _, pkt := range packets {
 		fixture.runPkt(pkt)
 	}

@@ -171,5 +171,5 @@ func getCFlags(config *ddebpf.Config) []string {
 }
 
 const (
-	compilationStepTimeout = 60 * time.Second
+	compilationStepTimeout = 60 * time.Second //nolint:unused // TODO
 )

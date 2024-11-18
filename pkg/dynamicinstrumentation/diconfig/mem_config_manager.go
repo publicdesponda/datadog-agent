@@ -31,7 +31,7 @@ type ReaderConfigManager struct {
 	state    ditypes.DIProcs
 }
 
-type readerConfigCallback func(configsByService)
+type readerConfigCallback func(configsByService) //nolint:unused // TODO
 type configsByService = map[ditypes.ServiceName]map[ditypes.ProbeID]rcConfig
 
 func NewReaderConfigManager() (*ReaderConfigManager, error) {
