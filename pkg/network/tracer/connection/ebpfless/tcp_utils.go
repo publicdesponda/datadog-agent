@@ -36,8 +36,8 @@ const tcpSeqMidpoint = 0x80000000
 type ConnStatus uint8 //nolint:revive // TODO
 
 const (
-	ConnStatClosed ConnStatus = iota //nolint:revive // TODO
-	ConnStatAttempted
+	ConnStatClosed    ConnStatus = iota //nolint:revive // TODO
+	ConnStatAttempted                   //nolint:revive // TODO
 	ConnStatEstablished
 )
 
@@ -51,7 +51,7 @@ type SynState uint8 //nolint:revive // TODO
 
 const (
 	SynStateNone SynState = iota //nolint:revive // TODO
-	SynStateSent
+	SynStateSent                 //nolint:revive // TODO
 	SynStateAcked
 )
 

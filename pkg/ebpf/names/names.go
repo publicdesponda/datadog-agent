@@ -5,7 +5,7 @@
 
 //go:build linux_bpf
 
-// Package to provide types for eBPF resource names //nolint:revive // TODO
+// Package names provide types for eBPF resource names
 package names
 
 import (

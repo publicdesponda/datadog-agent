@@ -143,7 +143,7 @@ func RunSample(t *testing.T, name SampleName) *exec.Cmd {
 	return RunSampleWithArgs(t, name, GetDefaultArgs())
 }
 
-// RunSample executes the sample binary with args and returns the command. Cleanup is configured automatically //nolint:revive // TODO
+// RunSampleWithArgs executes the sample binary with args and returns the command. Cleanup is configured automatically
 func RunSampleWithArgs(t *testing.T, name SampleName, args SampleArgs) *exec.Cmd {
 	builtBin := getBuiltSamplePath(t, name)
 

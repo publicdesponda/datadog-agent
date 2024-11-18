@@ -33,8 +33,8 @@ const probeUID = "net"
 type TracerType int //nolint:revive // TODO
 
 const (
-	TracerTypePrebuilt TracerType = iota //nolint:revive // TODO
-	TracerTypeRuntimeCompiled
+	TracerTypePrebuilt        TracerType = iota //nolint:revive // TODO
+	TracerTypeRuntimeCompiled                   //nolint:revive // TODO
 	TracerTypeCORE
 )
 
