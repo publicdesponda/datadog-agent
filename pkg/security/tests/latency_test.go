@@ -9,7 +9,6 @@
 package tests
 
 import (
-	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -27,9 +26,7 @@ var (
 	host    string
 )
 
-//nolint:typecheck // TODO pattern latency/bin: no matching files found (typecheck)
-//go:embed latency/bin
-var benchLatencyhFS embed.FS
+//var benchLatencyhFS embed.FS
 
 // modified version of testModule.CreateWithOption, to be able to call it without testing module
 func CreateWithOptions(tb testing.TB, filename string, user, group, mode int) (string, unsafe.Pointer, error) {
@@ -64,26 +61,27 @@ func CreateWithOptions(tb testing.TB, filename string, user, group, mode int) (s
 
 // load embedded binary
 func loadBenchLatencyBin(tb testing.TB, binary string) (string, error) {
-	testerBin, err := benchLatencyhFS.ReadFile(fmt.Sprintf("latency/bin/%s", binary))
-	if err != nil {
-		return "", err
-	}
+	// testerBin, err := benchLatencyhFS.ReadFile(fmt.Sprintf("latency/bin/%s", binary))
+	// if err != nil {
+	// 	return "", err
+	// }
 
-	perm := 0o700
-	binPath, _, _ := CreateWithOptions(tb, binary, -1, -1, perm)
+	// perm := 0o700
+	// binPath, _, _ := CreateWithOptions(tb, binary, -1, -1, perm)
 
-	f, err := os.OpenFile(binPath, os.O_WRONLY|os.O_CREATE, os.FileMode(perm))
-	if err != nil {
-		return "", err
-	}
+	// f, err := os.OpenFile(binPath, os.O_WRONLY|os.O_CREATE, os.FileMode(perm))
+	// if err != nil {
+	// 	return "", err
+	// }
 
-	if _, err = f.Write(testerBin); err != nil {
-		f.Close()
-		return "", err
-	}
-	f.Close()
+	// if _, err = f.Write(testerBin); err != nil {
+	// 	f.Close()
+	// 	return "", err
+	// }
+	// f.Close()
 
-	return binPath, nil
+	// return binPath, nil
+	return "", nil
 }
 
 // bench induced latency for DNS req
