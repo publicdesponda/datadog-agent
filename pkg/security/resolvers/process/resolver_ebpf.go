@@ -1276,25 +1276,26 @@ func (p *EBPFResolver) newEntryFromProcfsAndSyncKernelMaps(proc *process.Process
 
 	p.insertEntry(entry, p.entryCache[pid], source)
 
-	bootTime := p.timeResolver.GetBootTime()
-
-	// insert new entry in kernel maps
-	procCacheEntryB := make([]byte, 248)
-	_, err := entry.Process.MarshalProcCache(procCacheEntryB, bootTime)
-	if err != nil {
-		seclog.Errorf("couldn't marshal proc_cache entry: %s", err)
-	} else {
-		if err = p.procCacheMap.Put(entry.Cookie, procCacheEntryB); err != nil {
-			seclog.Errorf("couldn't push proc_cache entry to kernel space: %s", err)
+	if source == model.ProcessCacheEntryFromSnapshot {
+		bootTime := p.timeResolver.GetBootTime()
+		// insert new entry in kernel maps
+		procCacheEntryB := make([]byte, 248)
+		_, err := entry.Process.MarshalProcCache(procCacheEntryB, bootTime)
+		if err != nil {
+			seclog.Errorf("couldn't marshal proc_cache entry: %s", err)
+		} else {
+			if err = p.procCacheMap.Put(entry.Cookie, procCacheEntryB); err != nil {
+				seclog.Errorf("couldn't push proc_cache entry to kernel space: %s", err)
+			}
 		}
-	}
-	pidCacheEntryB := make([]byte, 88)
-	_, err = entry.Process.MarshalPidCache(pidCacheEntryB, bootTime)
-	if err != nil {
-		seclog.Errorf("couldn't marshal pid_cache entry: %s", err)
-	} else {
-		if err = p.pidCacheMap.Put(pid, pidCacheEntryB); err != nil {
-			seclog.Errorf("couldn't push pid_cache entry to kernel space: %s", err)
+		pidCacheEntryB := make([]byte, 88)
+		_, err = entry.Process.MarshalPidCache(pidCacheEntryB, bootTime)
+		if err != nil {
+			seclog.Errorf("couldn't marshal pid_cache entry: %s", err)
+		} else {
+			if err = p.pidCacheMap.Put(pid, pidCacheEntryB); err != nil {
+				seclog.Errorf("couldn't push pid_cache entry to kernel space: %s", err)
+			}
 		}
 	}
 
