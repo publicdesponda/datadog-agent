@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"golang.org/x/net/http/httpproxy"
+	"golang.org/x/net/http2"
 
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -119,6 +120,12 @@ func CreateHTTPTransport(cfg pkgconfigmodel.Reader) *http.Transport {
 		IdleConnTimeout:       45 * time.Second,
 		TLSHandshakeTimeout:   tlsHandshakeTimeout,
 		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	shouldForceHttp1 := false // read from config
+	if !shouldForceHttp1 {
+		// TODO: handle error
+		_ = http2.ConfigureTransport(transport)
 	}
 
 	if proxies := cfg.GetProxies(); proxies != nil {
