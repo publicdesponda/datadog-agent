@@ -26,6 +26,8 @@ $err = $LASTEXITCODE
 Write-Host Go linter result is $err
 if($err -ne 0){
     Write-Host -ForegroundColor Red "go linter failed $err"
+    Write-Host "End of linter execution sleeping for 1h"
+    Start-Sleep -s 3600
     [Environment]::Exit($err)
 }
 
