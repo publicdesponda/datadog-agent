@@ -33,10 +33,10 @@ var statsTelemetry = struct {
 
 const tcpSeqMidpoint = 0x80000000
 
-type ConnStatus uint8
+type ConnStatus uint8 //nolint:revive // TODO
 
 const (
-	ConnStatClosed ConnStatus = iota
+	ConnStatClosed ConnStatus = iota //nolint:revive // TODO
 	ConnStatAttempted
 	ConnStatEstablished
 )
@@ -47,10 +47,10 @@ var connStatusLabels = []string{
 	"Established",
 }
 
-type SynState uint8
+type SynState uint8 //nolint:revive // TODO
 
 const (
-	SynStateNone SynState = iota
+	SynStateNone SynState = iota //nolint:revive // TODO
 	SynStateSent
 	SynStateAcked
 )
@@ -72,7 +72,7 @@ func (ss *SynState) update(synFlag, ackFlag bool) {
 	}
 }
 
-func LabelForState(tcpState ConnStatus) string {
+func LabelForState(tcpState ConnStatus) string { //nolint:revive // TODO
 	idx := int(tcpState)
 	if idx < len(connStatusLabels) {
 		return connStatusLabels[idx]
@@ -98,7 +98,7 @@ func debugPacketDir(pktType uint8) string {
 	}
 }
 
-func debugTcpFlags(tcp *layers.TCP) string {
+func debugTcpFlags(tcp *layers.TCP) string { //nolint:revive // TODO
 	var flags []string
 	if tcp.RST {
 		flags = append(flags, "RST")

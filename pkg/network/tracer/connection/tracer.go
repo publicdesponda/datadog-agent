@@ -22,7 +22,7 @@ import (
 type TracerType int
 
 const (
-	TracerTypeKProbePrebuilt TracerType = iota
+	TracerTypeKProbePrebuilt TracerType = iota //nolint:revive // TODO
 	TracerTypeKProbeRuntimeCompiled
 	TracerTypeKProbeCORE
 	TracerTypeFentry

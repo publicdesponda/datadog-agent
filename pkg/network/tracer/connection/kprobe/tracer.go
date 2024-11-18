@@ -30,10 +30,10 @@ import (
 
 const probeUID = "net"
 
-type TracerType int
+type TracerType int //nolint:revive // TODO
 
 const (
-	TracerTypePrebuilt TracerType = iota
+	TracerTypePrebuilt TracerType = iota //nolint:revive // TODO
 	TracerTypeRuntimeCompiled
 	TracerTypeCORE
 )
@@ -109,7 +109,7 @@ func ClassificationSupported(config *config.Config) bool {
 }
 
 // LoadTracer loads the co-re/prebuilt/runtime compiled network tracer, depending on config
-func LoadTracer(cfg *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), TracerType, error) {
+func LoadTracer(cfg *config.Config, mgrOpts manager.Options, connCloseEventHandler ddebpf.EventHandler, failedConnsHandler ddebpf.EventHandler) (*manager.Manager, func(), TracerType, error) { //nolint:revive // TODO
 	kprobeAttachMethod := manager.AttachKprobeWithPerfEventOpen
 	if cfg.AttachKprobesWithKprobeEventsABI {
 		kprobeAttachMethod = manager.AttachKprobeWithKprobeEvents
