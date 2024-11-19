@@ -1243,7 +1243,7 @@ deva:
   stage: setup
   script:
     - echo "Installing deva"
-    - git clone -b celian/logging git@github.com:DataDog/datadog-agent-dev.git
-    # - git clone -b celian/logging https://github.com/DataDog/datadog-agent-dev.git
+    # - git clone -b celian/logging git@github.com:DataDog/datadog-agent-dev.git
+    - git clone -b celian/logging https://github.com/DataDog/datadog-agent-dev.git
     - ( cd datadog-agent-dev && pip install -e . )
     - deva
