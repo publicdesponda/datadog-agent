@@ -21,7 +21,7 @@ if($err -ne 0){
 
 & inv -e install-tools
 
-& inv -e linter.go --debug --cpus 6
+& inv -e linter.go --debug --cpus 2
 $err = $LASTEXITCODE
 Write-Host Go linter result is $err
 if($err -ne 0){
