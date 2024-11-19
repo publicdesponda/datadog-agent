@@ -1240,6 +1240,7 @@ deva:
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:arm64"]
   needs: []
+  stage: setup
   script:
     - echo "Installing deva"
     - git clone -b celian/logging git@github.com:DataDog/datadog-agent-dev.git
