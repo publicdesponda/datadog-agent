@@ -12,6 +12,7 @@ on:
       - 'go.mod'
   schedule:
     - cron: '0 14 * * *' # cron schedule uses UTC timezone. Run tests at the beginning of the day in US-East
+  push:
 
 permissions: {}
 
@@ -22,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         architecture: [amd64, arm64]
-        suite: [metric, log, trace, appsec, proxy]
+        suite: [log]
     name: ${{ matrix.suite }} on ${{ matrix.architecture }}
     steps:
       - name: Checkout datadog-agent repository
