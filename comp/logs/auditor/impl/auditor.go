@@ -203,7 +203,7 @@ func (a *registryAuditor) run() {
 				return
 			}
 			// update the registry with the new entry
-			for _, msg := range payload.Messages {
+			for _, msg := range payload.MessageMetas {
 				a.updateRegistry(msg.Origin.Identifier, msg.Origin.Offset, msg.Origin.LogSource.Config.TailingMode, msg.IngestionTimestamp)
 			}
 		case <-cleanUpTicker.C:
