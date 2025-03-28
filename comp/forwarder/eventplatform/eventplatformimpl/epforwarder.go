@@ -52,7 +52,7 @@ const (
 	eventTypeDBMMetadata = "dbm-metadata"
 	gzipCompressionKind  = "gzip"
 	gzipCompressionLevel = 6
-	zstdCompressionKind  = "gzip"
+	zstdCompressionKind  = "zstd"
 	zstdCompressionLevel = 1
 )
 
