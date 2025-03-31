@@ -135,7 +135,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -149,7 +149,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -188,7 +188,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -202,7 +202,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -216,7 +216,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -230,7 +230,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 	{
@@ -244,7 +244,7 @@ var passthroughPipelineDescs = []passthroughPipelineDesc{
 		defaultBatchMaxContentSize:    pkgconfigsetup.DefaultBatchMaxContentSize,
 		defaultBatchMaxSize:           pkgconfigsetup.DefaultBatchMaxSize,
 		defaultInputChanSize:          pkgconfigsetup.DefaultInputChanSize,
-		compressionKind:               "gzip",
+		compressionKind:               gzipCompressionKind,
 		compressionLevel:              gzipCompressionLevel,
 	},
 }
@@ -401,8 +401,6 @@ type passthroughPipelineDesc struct {
 	defaultBatchMaxContentSize    int
 	defaultBatchMaxSize           int
 	defaultInputChanSize          int
-	defaultCompressionKind        string
-	defaultCompressionLevel       int
 }
 
 // newHTTPPassthroughPipeline creates a new HTTP-only event platform pipeline that sends messages directly to intake
