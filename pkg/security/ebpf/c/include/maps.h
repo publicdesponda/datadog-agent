@@ -107,17 +107,17 @@ BPF_PERCPU_ARRAY_MAP(packets, struct packet_t, 1)
 BPF_PERCPU_ARRAY_MAP(selinux_write_buffer, struct selinux_write_buffer_t, 1)
 BPF_PERCPU_ARRAY_MAP(is_new_kthread, u32, 1)
 BPF_PERCPU_ARRAY_MAP(syscalls_stats, struct syscalls_stats_t, EVENT_MAX)
-BPF_PERCPU_ARRAY_MAP(network_flow_monitor_event_gen, struct network_flow_monitor_event_t, 1)
+BPF_PERCPU_ARRAY_MAP(raw_packet_event, struct raw_packet_event_t, 1)
 BPF_PERCPU_ARRAY_MAP(active_flows_gen, struct active_flows_t, 1)
 BPF_PERCPU_ARRAY_MAP(raw_packet_enabled, u32, 1)
-BPF_PERCPU_ARRAY_MAP(sysctl_event_gen, struct sysctl_event_t, 1)
 
 //Heap:
 union union_heap_t {
     struct dns_event_t dns_event;
     struct dns_response_event_t dns_response_event;
-    struct raw_packet_event_t raw_packet_event;
     struct imds_event_t imds_event;
+    struct network_flow_monitor_event_t network_flow_monitor_event;
+    struct sysctl_event_t sysctl_event;
 };
 
 BPF_PERCPU_ARRAY_MAP(union_heap, union union_heap_t, 1)
