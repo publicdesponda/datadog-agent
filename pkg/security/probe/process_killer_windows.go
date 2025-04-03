@@ -18,7 +18,12 @@ var (
 	binariesExcluded = []string{}
 )
 
-// ProcessKillerLinux defines the process kill windows implementation
+type killContext struct {
+	pid  int
+	path string
+}
+
+// ProcessKillerWindows defines the process kill windows implementation
 type ProcessKillerWindows struct{}
 
 // NewProcessKillerOS returns a ProcessKillerOS

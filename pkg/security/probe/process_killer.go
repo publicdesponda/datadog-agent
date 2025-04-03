@@ -695,13 +695,6 @@ const (
 	executableDisarmerType disarmerType = "executable"
 )
 
-type killContext struct {
-	createdAt uint64
-	pid       int
-	path      string
-	// containerID string?? TODO: be able to specify the containerID to kill
-}
-
 type ruleDisarmer struct {
 	sync.Mutex
 	ruleID          string

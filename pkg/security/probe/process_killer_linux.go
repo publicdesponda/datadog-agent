@@ -41,6 +41,13 @@ var (
 	}
 )
 
+type killContext struct {
+	createdAt uint64
+	pid       int
+	path      string
+	// containerID string?? TODO: be able to specify the containerID to kill
+}
+
 const (
 	killWithinMillis = 2000
 )
