@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/hostname/hostnameinterface"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
-	"github.com/DataDog/datadog-agent/comp/logs/auditor/def"
+	auditordef "github.com/DataDog/datadog-agent/comp/logs/auditor/def"
 	"github.com/DataDog/datadog-agent/comp/otelcol/logsagentpipeline"
 	compression "github.com/DataDog/datadog-agent/comp/serializer/logscompression/def"
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
@@ -47,7 +47,7 @@ type Dependencies struct {
 	Config      configComponent.Component
 	Hostname    hostnameinterface.Component
 	Compression compression.Component
-	Auditor     auditor.Component
+	Auditor     auditordef.Component
 }
 
 // Agent represents the data pipeline that collects, decodes, processes and sends logs to the backend.
@@ -56,7 +56,7 @@ type Agent struct {
 	config      pkgconfigmodel.Reader
 	hostname    hostnameinterface.Component
 	compression compression.Component
-	auditor     auditor.Component
+	auditor     auditordef.Component
 
 	endpoints        *config.Endpoints
 	destinationsCtx  *client.DestinationsContext
