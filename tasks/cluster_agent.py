@@ -35,7 +35,6 @@ def build(
     development=True,
     skip_assets=False,
     policies_version=None,
-    release_version="nightly",
 ):
     """
     Build Cluster Agent
@@ -57,11 +56,11 @@ def build(
     )
 
     if policies_version is None:
-        print(f"Loading release versions for {release_version}")
-        env = load_release_versions(ctx, release_version)
+        print(f"Loading release versions for release")
+        env = load_release_versions(ctx)
         if "SECURITY_AGENT_POLICIES_VERSION" in env:
             policies_version = env["SECURITY_AGENT_POLICIES_VERSION"]
-            print(f"Security Agent polices for {release_version}: {policies_version}")
+            print(f"Security Agent polices for release: {policies_version}")
 
     build_context = "Dockerfiles/cluster-agent"
     policies_path = f"{build_context}/security-agent-policies"

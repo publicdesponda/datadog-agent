@@ -72,8 +72,8 @@ def _get_vs_build_command(cmd, vstudio_root=None):
     return cmd
 
 
-def _get_env(ctx, major_version='7', release_version='nightly', flavor=None):
-    env = load_release_versions(ctx, release_version)
+def _get_env(ctx, major_version='7', flavor=None):
+    env = load_release_versions(ctx)
 
     if flavor is None:
         flavor = os.getenv("AGENT_FLAVOR", "")
@@ -292,7 +292,6 @@ def build(
     vstudio_root=None,
     arch="x64",
     major_version='7',
-    release_version='nightly',
     flavor=None,
     debug=False,
     build_upgrade=False,
@@ -300,7 +299,7 @@ def build(
     """
     Build the MSI installer for the agent
     """
-    env = _get_env(ctx, major_version, release_version, flavor=flavor)
+    env = _get_env(ctx, major_version, flavor=flavor)
     env['OMNIBUS_TARGET'] = 'main'
     configuration = _msbuild_configuration(debug=debug)
     build_outdir = build_out_dir(arch, configuration)
@@ -399,11 +398,11 @@ def build_installer(ctx, vstudio_root=None, arch="x64", debug=False):
 
 
 @task
-def test(ctx, vstudio_root=None, arch="x64", major_version='7', release_version='nightly', debug=False):
+def test(ctx, vstudio_root=None, arch="x64", major_version='7', debug=False):
     """
     Run the unit test for the MSI installer for the agent
     """
-    env = _get_env(ctx, major_version, release_version)
+    env = _get_env(ctx, major_version)
     configuration = _msbuild_configuration(debug=debug)
     build_outdir = build_out_dir(arch, configuration)
 
@@ -498,7 +497,7 @@ def get_msm_info(ctx, release_version):
     """
     Get the merge module info from the release.json for the given release_version
     """
-    env = load_release_versions(ctx, release_version)
+    env = load_release_versions(ctx)
     base_url = "https://s3.amazonaws.com/dd-windowsfilter/builds"
     msm_info = {}
     if 'WINDOWS_DDNPM_VERSION' in env:

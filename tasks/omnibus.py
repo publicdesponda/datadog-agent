@@ -76,7 +76,6 @@ def bundle_install_omnibus(ctx, gem_path=None, env=None, max_try=2):
 def get_omnibus_env(
     ctx,
     skip_sign=False,
-    release_version="nightly",
     major_version='7',
     hardened_runtime=False,
     system_probe_bin=None,
@@ -86,7 +85,7 @@ def get_omnibus_env(
     custom_config_dir=None,
     fips_mode=False,
 ):
-    env = load_release_versions(ctx, release_version)
+    env = load_release_versions(ctx)
 
     # If the host has a GOMODCACHE set, try to reuse it
     if not go_mod_cache and os.environ.get('GOMODCACHE'):
@@ -217,7 +216,6 @@ def build(
     env = get_omnibus_env(
         ctx,
         skip_sign=skip_sign,
-        release_version=release_version,
         major_version=major_version,
         hardened_runtime=hardened_runtime,
         system_probe_bin=system_probe_bin,
@@ -350,7 +348,6 @@ def manifest(
     base_dir=None,
     gem_path=None,
     skip_sign=False,
-    release_version="nightly",
     major_version='7',
     hardened_runtime=False,
     system_probe_bin=None,
@@ -363,7 +360,6 @@ def manifest(
     env = get_omnibus_env(
         ctx,
         skip_sign=skip_sign,
-        release_version=release_version,
         major_version=major_version,
         hardened_runtime=hardened_runtime,
         system_probe_bin=system_probe_bin,

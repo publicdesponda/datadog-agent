@@ -381,7 +381,7 @@ def get_version_numeric_only(ctx, major_version='7'):
     return version
 
 
-def load_release_versions(_, target_version):
+def load_release_versions(_, target_version="release"):
     with open("release.json") as f:
         versions = json.load(f)
         if target_version in versions:
