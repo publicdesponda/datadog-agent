@@ -645,9 +645,11 @@ func (p *ProcessKiller) getDisarmerParams(kill *rules.KillDefinition) (*disarmer
 
 	// cap the disarmer periods to killActionDisarmerMaxPeriod
 	if containerParams.period > killActionDisarmerMaxPeriod {
+		seclog.Warnf("Runtime security enforcement container disarmer period configured to %v, which is longer than maximum allowed, capping it at %v", containerParams.period, killActionDisarmerMaxPeriod)
 		containerParams.period = killActionDisarmerMaxPeriod
 	}
 	if executableParams.period > killActionDisarmerMaxPeriod {
+		seclog.Warnf("Runtime security enforcement executable disarmer period configured to %v, which is longer than maximum allowed, capping it at %v", executableParams.period, killActionDisarmerMaxPeriod)
 		executableParams.period = killActionDisarmerMaxPeriod
 	}
 
@@ -780,7 +782,7 @@ func (rd *ruleDisarmer) allow(cache *disarmerCache[string, bool], key string, on
 	rd.Lock()
 	defer rd.Unlock()
 
-	if rd.disarmed {
+	if rd.dismantled {
 		return false
 	}
 
