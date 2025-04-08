@@ -27,7 +27,7 @@ import (
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	tagger "github.com/DataDog/datadog-agent/comp/core/tagger/def"
-	dualTaggerfx "github.com/DataDog/datadog-agent/comp/core/tagger/fx-dual"
+	remoteTaggerfx "github.com/DataDog/datadog-agent/comp/core/tagger/fx-remote"
 	taggerTypes "github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	wmcatalogremote "github.com/DataDog/datadog-agent/comp/core/workloadmeta/collectors/catalog-remote"
 	workloadmeta "github.com/DataDog/datadog-agent/comp/core/workloadmeta/def"
@@ -142,21 +142,19 @@ func MakeCommand(globalParamsGetter func() *command.GlobalParams, name string, a
 				}),
 
 				// Tagger must be initialized after agent config has been setup
-				dualTaggerfx.Module(tagger.DualParams{
-					UseRemote: func(c config.Component) bool {
-						return c.GetBool("process_config.remote_tagger")
+				remoteTaggerfx.Module(
+					tagger.RemoteParams{
+						RemoteTarget: func(c config.Component) (string, error) {
+							return fmt.Sprintf(":%v", c.GetInt("cmd_port")), nil
+						},
+						RemoteTokenFetcher: func(c config.Component) func() (string, error) {
+							return func() (string, error) {
+								return security.FetchAuthToken(c)
+							}
+						},
+						RemoteFilter: taggerTypes.NewMatchAllFilter(),
 					},
-				}, tagger.RemoteParams{
-					RemoteTarget: func(c config.Component) (string, error) {
-						return fmt.Sprintf(":%v", c.GetInt("cmd_port")), nil
-					},
-					RemoteTokenFetcher: func(c config.Component) func() (string, error) {
-						return func() (string, error) {
-							return security.FetchAuthToken(c)
-						}
-					},
-					RemoteFilter: taggerTypes.NewMatchAllFilter(),
-				}),
+				),
 				processComponent.Bundle(),
 				// InitSharedContainerProvider must be called before the application starts so the workloadmeta collector can be initiailized correctly.
 				// Since the tagger depends on the workloadmeta collector, we can not make the tagger a dependency of workloadmeta as it would create a circular dependency.
