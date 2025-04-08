@@ -43,41 +43,23 @@ func TestFindServiceNameInPod(t *testing.T) {
 		}
 	}
 
-	containerPointers := func(idx ...int) func(*corev1.Pod) []*corev1.Container {
-		return func(pod *corev1.Pod) []*corev1.Container {
-			cs := make([]*corev1.Container, len(idx))
-			for i, id := range idx {
-				cs[i] = &pod.Spec.Containers[id]
-			}
-			return cs
-		}
-	}
-
-	type expectedEnvVarData struct {
-		env        corev1.EnvVar
-		containers func(*corev1.Pod) []*corev1.Container
-	}
-
 	testData := []struct {
 		name     string
 		pod      *corev1.Pod
-		expected []expectedEnvVarData
+		expected []corev1.EnvVar
 	}{
 		{
 			name:     "one container, no env",
 			pod:      makePod(containerWithEnv("c-1")),
-			expected: []expectedEnvVarData{},
+			expected: []corev1.EnvVar{},
 		},
 		{
 			name: "one container one env",
 			pod: makePod(
 				containerWithEnv("c-1", envVar("DD_SERVICE", "banana")),
 			),
-			expected: []expectedEnvVarData{
-				{
-					env:        corev1.EnvVar{Name: "DD_SERVICE", Value: "banana"},
-					containers: containerPointers(0),
-				},
+			expected: []corev1.EnvVar{
+				{Name: "DD_SERVICE", Value: "banana"},
 			},
 		},
 		{
@@ -86,11 +68,8 @@ func TestFindServiceNameInPod(t *testing.T) {
 				containerWithEnv("c-1", envVar("DD_SERVICE", "banana")),
 				containerWithEnv("c-2", envVar("DD_SERVICE", "banana")),
 			),
-			expected: []expectedEnvVarData{
-				{
-					env:        corev1.EnvVar{Name: "DD_SERVICE", Value: "banana"},
-					containers: containerPointers(0, 1),
-				},
+			expected: []corev1.EnvVar{
+				{Name: "DD_SERVICE", Value: "banana"},
 			},
 		},
 		{
@@ -99,11 +78,8 @@ func TestFindServiceNameInPod(t *testing.T) {
 				containerWithEnv("c-1", envValueFrom("DD_SERVICE", "some-field")),
 				containerWithEnv("c-2", envValueFrom("DD_SERVICE", "some-field")),
 			),
-			expected: []expectedEnvVarData{
-				{
-					env:        envValueFrom("DD_SERVICE", "some-field"),
-					containers: containerPointers(0, 1),
-				},
+			expected: []corev1.EnvVar{
+				envValueFrom("DD_SERVICE", "some-field"),
 			},
 		},
 		{
@@ -112,31 +88,17 @@ func TestFindServiceNameInPod(t *testing.T) {
 				containerWithEnv("c-1", envValueFrom("DD_SERVICE", "some-field")),
 				containerWithEnv("c-2", envVar("DD_SERVICE", "some-name")),
 			),
-			expected: []expectedEnvVarData{
-				{
-					env:        envValueFrom("DD_SERVICE", "some-field"),
-					containers: containerPointers(0),
-				},
-				{
-					env:        envVar("DD_SERVICE", "some-name"),
-					containers: containerPointers(1),
-				},
+			expected: []corev1.EnvVar{
+				envValueFrom("DD_SERVICE", "some-field"),
+				envVar("DD_SERVICE", "some-name"),
 			},
 		},
 	}
 
 	for _, tt := range testData {
 		t.Run(tt.name, func(t *testing.T) {
-			expected := make([]serviceEnvVarData, len(tt.expected))
-			for idx, v := range tt.expected {
-				expected[idx] = serviceEnvVarData{
-					env:        v.env,
-					containers: v.containers(tt.pod),
-				}
-			}
-
 			out := findServiceNameEnvVarsInPod(tt.pod)
-			require.ElementsMatch(t, expected, out)
+			require.ElementsMatch(t, tt.expected, out)
 		})
 	}
 }

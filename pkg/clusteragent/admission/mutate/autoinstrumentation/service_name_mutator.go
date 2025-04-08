@@ -22,18 +22,13 @@ func encodeEnvVar(e corev1.EnvVar) string {
 	return string(out)
 }
 
-type serviceEnvVarData struct {
-	env        corev1.EnvVar
-	containers []*corev1.Container
-}
-
-func findServiceNameEnvVarsInPod(pod *corev1.Pod) []serviceEnvVarData {
+func findServiceNameEnvVarsInPod(pod *corev1.Pod) []corev1.EnvVar {
 	// grouped by env var for DD_SERVICE,
 	// all of the env var definitions and each container.
 	//
 	// we hold onto all of these because we should at least log
 	// a warning for when they are incompatible.
-	found := []serviceEnvVarData{}
+	found := []corev1.EnvVar{}
 	keys := map[string]int{}
 
 	iterContainer := func(c *corev1.Container) {
@@ -41,18 +36,13 @@ func findServiceNameEnvVarsInPod(pod *corev1.Pod) []serviceEnvVarData {
 			if e.Name == kubernetes.ServiceTagEnvVar {
 				key := encodeEnvVar(e)
 				idx, ok := keys[key]
-				var cs serviceEnvVarData
-				if ok {
-					cs = found[idx]
-				} else {
-					cs.env = e
-					found = append(found, cs)
+				if !ok {
+					var env corev1.EnvVar
+					e.DeepCopyInto(&env)
+					found = append(found, env)
 					idx = len(found) - 1
 					keys[key] = idx
 				}
-
-				cs.containers = append(cs.containers, c)
-				found[idx] = cs
 				return
 			}
 		}
@@ -67,16 +57,15 @@ func findServiceNameEnvVarsInPod(pod *corev1.Pod) []serviceEnvVarData {
 
 func findServiceNameInPod(pod *corev1.Pod) (corev1.EnvVar, bool) {
 	found := findServiceNameEnvVarsInPod(pod)
-	if len(found) > 1 {
-		log.Debug("more than one unique definition of service name found, choosing the first one")
-	}
 
 	var ok bool
 	var env corev1.EnvVar
-	for _, v := range found {
-		env = v.env
+	if len(found) > 0 {
+		env = found[0]
 		ok = true
-		break
+		if len(found) > 1 {
+			log.Debug("more than one unique definition of service name found, choosing the first one")
+		}
 	}
 
 	if !ok {
