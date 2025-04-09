@@ -137,7 +137,8 @@ func runOTelAgentCommand(ctx context.Context, params *subcommands.GlobalParams, 
 		fx.Provide(func(client *metricsclient.StatsdClientWrapper) statsd.Component {
 			return statsd.NewOTelStatsd(client)
 		}),
-		authtokenimpl.Module(),
+		ipcfx.Module(),
+		fx.Supply(ipc.ForDaemon()),
 		collectorfx.Module(),
 		collectorcontribFx.Module(),
 		converterfx.Module(),
