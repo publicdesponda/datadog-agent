@@ -548,6 +548,7 @@ type ExitEvent struct {
 	Code  uint32 `field:"code,opts:gen_getters"` // SECLDoc[code] Definition:`Exit code of the process or number of the signal that caused the process to terminate`
 }
 
+// DNSQuestion represents the dns question
 type DNSQuestion struct {
 	Name  string `field:"name,opts:length" op_override:"eval.CaseInsensitiveCmp"` // SECLDoc[name] Definition:`the queried domain name`
 	Type  uint16 `field:"type"`                                                   // SECLDoc[type] Definition:`a two octet code which specifies the DNS question type` Constants:`DNS qtypes`
@@ -562,6 +563,7 @@ type DNSEvent struct {
 	Question DNSQuestion `field:"question"`
 }
 
+// DNSResponse represents a DNS response event
 type DNSResponse struct {
 	ID           uint16      `field:"id"` // SECLDoc[id] Definition:`[Experimental] the DNS request ID`
 	Question     DNSQuestion `field:"question"`

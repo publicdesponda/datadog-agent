@@ -199,11 +199,6 @@ int classifier_dns_response(struct __sk_buff *skb) {
     }
 
     pkt->offset += sizeof(struct dnshdr);
-    int remaining_bytes = len - sizeof(struct dnshdr);
-
-    if (remaining_bytes <= 0 || pkt->offset <= 0 || remaining_bytes >= DNS_RECEIVE_MAX_LENGTH) {
-        return ACT_OK;
-    }
 
     u64 current_timestamp = bpf_ktime_get_ns();
     struct dns_responses_sent_to_userspace_lru_entry_t* lru_entry = bpf_map_lookup_elem(&dns_responses_sent_to_userspace, &header_id);
@@ -221,6 +216,12 @@ int classifier_dns_response(struct __sk_buff *skb) {
     entry.timestamp = current_timestamp;
     entry.packet_size = (u64)len;
     bpf_map_update_elem(&dns_responses_sent_to_userspace, &header_id, &entry, BPF_ANY);
+
+    int remaining_bytes = len - sizeof(struct dnshdr);
+
+    if (remaining_bytes <= 0 || pkt->offset <= 0 || remaining_bytes >= DNS_RECEIVE_MAX_LENGTH) {
+        return ACT_OK;
+    }
 
     if (send_packet_with_context) {
         err = bpf_skb_load_bytes(skb, pkt->offset, (void*)map_elem->full_dns_response.data, remaining_bytes);

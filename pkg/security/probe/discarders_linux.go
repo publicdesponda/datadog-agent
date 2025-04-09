@@ -85,7 +85,6 @@ var InvalidDiscarders = map[eval.Field][]string{
 }
 
 var dnsMask uint16
-var dnsFilter *ebpf.Map
 
 // bumpDiscardersRevision sends an eRPC request to bump the discarders revisionr
 func bumpDiscardersRevision(e *erpc.ERPC) error {
@@ -700,8 +699,8 @@ func init() {
 	SupportedDiscarders["dns_response.response_code"] = true
 }
 
-func dnsResponseDiscarderWrapper(eventType model.EventType, getter func(event *model.Event) (eval.Field, *model.DNSResponse, bool)) onDiscarderHandler {
-	return func(rs *rules.RuleSet, event *model.Event, probe *EBPFProbe, discarder Discarder) (bool, error) {
+func dnsResponseDiscarderWrapper(_ model.EventType, getter func(event *model.Event) (eval.Field, *model.DNSResponse, bool)) onDiscarderHandler {
+	return func(_ *rules.RuleSet, event *model.Event, probe *EBPFProbe, discarder Discarder) (bool, error) {
 		field, dnsResponse, _ := getter(event)
 
 		if discarder.Field == field {
