@@ -35,12 +35,12 @@ func findServiceNameEnvVarsInPod(pod *corev1.Pod) []corev1.EnvVar {
 		for _, e := range c.Env {
 			if e.Name == kubernetes.ServiceTagEnvVar {
 				key := encodeEnvVar(e)
-				idx, ok := keys[key]
+				_, ok := keys[key]
 				if !ok {
 					var env corev1.EnvVar
 					e.DeepCopyInto(&env)
 					found = append(found, env)
-					idx = len(found) - 1
+					idx := len(found) - 1
 					keys[key] = idx
 				}
 				return
