@@ -1,37 +1,56 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-present Datadog, Inc.
+// Copyright 2025-present Datadog, Inc.
 
-// Package mock is a mock implementation of the IPC component
+//go:build test
+
+// Package mock provides a mock for the ipc component
 package mock
 
 import (
+	"testing"
+
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"testing"
 
-	"go.uber.org/fx"
+	ipc "github.com/DataDog/datadog-agent/comp/core/ipc/def"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/ipc"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/option"
 )
+
+// Component is the mocked component type.
+type Component interface {
+	ipc.Component
+	// NewMockServer allows to create a mock server that use the IPC certificate
+	NewMockServer(handler http.Handler) *httptest.Server
+	Optional() option.Option[ipc.Component]
+}
 
 // inMemoryIPCComponent is a mock for the IPC component
 // It is used to set the auth token, client TLS config and server TLS config in memory
 type inMemoryIPCComponent struct {
 	t    testing.TB
 	conf config.Component
+}
+
+// Mock returns a mock for ipc component.
+func Mock(t testing.TB) Component {
+	// setting pkg/api/util globals
+	util.SetAuthTokenInMemory(t) // TODO IPC: remove this line when the migration to component framework will be fully finished
+
+	return &inMemoryIPCComponent{
+		t:    t,
+		conf: config.NewMock(t),
+	}
 }
 
 // Get is a mock of the fetchonly Get function
@@ -69,38 +88,6 @@ func (m *inMemoryIPCComponent) NewMockServer(handler http.Handler) *httptest.Ser
 	})
 
 	return ts
-}
-
-// Module returns a fx module that provides constructors for the optional and normal authtoken mock components
-func Module() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(func(t testing.TB) option.Option[ipc.Component] { return New(t).Optional() }),
-		fx.Provide(newMock),
-	)
-}
-
-func newMock(deps option.Option[ipc.Component]) (ipc.Component, error) {
-	ipc, ok := deps.Get()
-	if !ok {
-		return nil, fmt.Errorf("ipc component not found")
-	}
-	return ipc, nil
-}
-
-type optionalIPCComp struct {
-	fx.In
-	At option.Option[ipc.Component]
-}
-
-// New returns a new authtoken mock
-func New(t testing.TB) ipc.Mock {
-	// setting pkg/api/util globals
-	util.SetAuthTokenInMemory(t) // TODO IPC: remove this line when the migration to component framework will be fully finished
-
-	return &inMemoryIPCComponent{
-		t:    t,
-		conf: config.NewMock(t),
-	}
 }
 
 // New returns a new authtoken mock
