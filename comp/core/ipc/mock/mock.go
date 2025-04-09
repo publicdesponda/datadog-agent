@@ -18,6 +18,7 @@ import (
 	"net/url"
 
 	ipc "github.com/DataDog/datadog-agent/comp/core/ipc/def"
+	ipchttp "github.com/DataDog/datadog-agent/comp/core/ipc/http"
 
 	"github.com/stretchr/testify/require"
 
@@ -38,8 +39,9 @@ type Component interface {
 // inMemoryIPCComponent is a mock for the IPC component
 // It is used to set the auth token, client TLS config and server TLS config in memory
 type inMemoryIPCComponent struct {
-	t    testing.TB
-	conf config.Component
+	t      testing.TB
+	conf   config.Component
+	client ipc.HTTPClient
 }
 
 // Mock returns a mock for ipc component.
@@ -47,14 +49,17 @@ func Mock(t testing.TB) Component {
 	// setting pkg/api/util globals
 	util.SetAuthTokenInMemory(t) // TODO IPC: remove this line when the migration to component framework will be fully finished
 
+	config := config.NewMock(t)
+
 	return &inMemoryIPCComponent{
-		t:    t,
-		conf: config.NewMock(t),
+		t:      t,
+		conf:   config,
+		client: ipchttp.NewClient(util.GetAuthToken(), util.GetTLSClientConfig(), config),
 	}
 }
 
-// Get is a mock of the fetchonly Get function
-func (m *inMemoryIPCComponent) Get() string {
+// GetAuthToken is a mock of the fetchonly GetAuthToken function
+func (m *inMemoryIPCComponent) GetAuthToken() string {
 	return util.GetAuthToken()
 }
 
@@ -66,6 +71,14 @@ func (m *inMemoryIPCComponent) GetTLSClientConfig() *tls.Config {
 // GetTLSServerConfig is a mock of the fetchonly GetTLSServerConfig function
 func (m *inMemoryIPCComponent) GetTLSServerConfig() *tls.Config {
 	return util.GetTLSServerConfig()
+}
+
+func (m *inMemoryIPCComponent) HTTPMiddleware(next http.Handler) http.Handler {
+	return ipchttp.NewHTTPMiddleware(m.t.Logf, m.GetAuthToken())(next)
+}
+
+func (m *inMemoryIPCComponent) GetClient() ipc.HTTPClient {
+	return m.client
 }
 
 func (m *inMemoryIPCComponent) NewMockServer(handler http.Handler) *httptest.Server {
