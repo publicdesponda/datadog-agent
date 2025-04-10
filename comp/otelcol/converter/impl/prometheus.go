@@ -273,7 +273,7 @@ func getDatadogExporters(conf *confmap.Conf) map[string]any {
 	return datadogExporters
 }
 
-// findInternalMetricsAddress returns the adress of internal prometheus server if configured
+// findInternalMetricsAddress returns the address of internal prometheus server if configured
 func findInternalMetricsAddress(conf *confmap.Conf) string {
 	internalMetricsAddress := "0.0.0.0:8888"
 	mreaders := conf.Get("service::telemetry::metrics::readers")
