@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	auditor "github.com/DataDog/datadog-agent/comp/logs/auditor/def"
-	"github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 )
@@ -27,6 +26,9 @@ const defaultCleanupPeriod = 300 * time.Second
 
 // latest version of the API used by the auditor to retrieve the registry from disk.
 const registryAPIVersion = 2
+
+// defaultRegistryFilename is the default registry filename
+const defaultRegistryFilename = "registry.json"
 
 // A RegistryEntry represents an entry in the registry where we keep track
 // of current offsets
@@ -75,7 +77,7 @@ type Provides struct {
 // newAuditor is the public constructor for the auditor
 func newAuditor(deps Dependencies) *registryAuditor {
 	runPath := deps.Config.GetString("logs_config.run_path")
-	filename := setup.DefaultRegistryFilename
+	filename := defaultRegistryFilename
 	ttl := time.Duration(deps.Config.GetInt("logs_config.auditor_ttl")) * time.Hour
 	messageChannelSize := deps.Config.GetInt("logs_config.message_channel_size")
 	atomicRegistryWrite := deps.Config.GetBool("logs_config.atomic_registry_write")
