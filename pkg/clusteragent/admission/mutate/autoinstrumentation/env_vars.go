@@ -88,6 +88,10 @@ type envVar struct {
 	// prepend, if set to true will prepend the env var instead of appending
 	// it to the container Env slice.
 	prepend bool
+
+	// dontOverwrite, if set, if the existing env var is found we will
+	// not overwrite it. This keeps parity with the InjectEnv implementation.
+	dontOverwrite bool
 }
 
 func (e envVar) updateEnvVar(out *corev1.EnvVar) error {
@@ -112,13 +116,17 @@ func (e envVar) mutateContainer(c *corev1.Container) error {
 	}
 
 	for idx, env := range c.Env {
-		if env.Name == e.key {
-			if err := e.updateEnvVar(&env); err != nil {
-				return err
-			}
-			c.Env[idx] = env
-			return nil // if we found it we are done
+		if env.Name != e.key {
+			continue
 		}
+		if e.dontOverwrite {
+			return nil
+		}
+		if err := e.updateEnvVar(&env); err != nil {
+			return err
+		}
+		c.Env[idx] = env
+		return nil
 	}
 
 	env := corev1.EnvVar{Name: e.key}
@@ -178,15 +186,6 @@ func dotnetProfilingLdPreloadEnvValFunc(predefinedVal string) string {
 
 func rubyEnvValFunc(predefinedVal string) string {
 	return predefinedVal + rubyOptValue
-}
-
-func useExistingEnvValOr(newVal string) func(string) string {
-	return func(predefinedVal string) string {
-		if predefinedVal != "" {
-			return predefinedVal
-		}
-		return newVal
-	}
 }
 
 func valueOrZero[T any](pointer *T) T {

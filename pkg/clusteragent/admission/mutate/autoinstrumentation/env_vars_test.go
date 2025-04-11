@@ -21,7 +21,7 @@ func TestEnvVars(t *testing.T) {
 	}
 	testdata := []struct {
 		name     string
-		mutator  envVar
+		mutator  containerMutator
 		expected []corev1.EnvVar
 	}{
 		{
@@ -48,8 +48,9 @@ func TestEnvVars(t *testing.T) {
 		{
 			name: "prefer initial values",
 			mutator: envVar{
-				key:     "INITIAL",
-				valFunc: useExistingEnvValOr("new"),
+				key:           "INITIAL",
+				valFunc:       identityValFunc("new"),
+				dontOverwrite: true,
 			},
 			expected: []corev1.EnvVar{
 				initial,
@@ -63,6 +64,23 @@ func TestEnvVars(t *testing.T) {
 			},
 			expected: []corev1.EnvVar{
 				{Name: "INITIAL", Value: "new"},
+			},
+		},
+		{
+			name: "we can do the default behavior",
+			mutator: containerMutators{
+				envVarMutator(corev1.EnvVar{
+					Name:  "INITIAL",
+					Value: "updated",
+				}),
+				envVarMutator(corev1.EnvVar{
+					Name:  "PREPENDED",
+					Value: "new",
+				}),
+			},
+			expected: []corev1.EnvVar{
+				{Name: "PREPENDED", Value: "new"},
+				initial,
 			},
 		},
 	}
