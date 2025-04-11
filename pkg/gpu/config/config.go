@@ -52,6 +52,6 @@ func New() *Config {
 		EnableFatbinParsing:          spCfg.GetBool(sysconfig.FullKeyPath(consts.GPUNS, "enable_fatbin_parsing")),
 		KernelCacheQueueSize:         spCfg.GetInt(sysconfig.FullKeyPath(consts.GPUNS, "fatbin_request_queue_size")),
 		RingBufferSizePagesPerDevice: spCfg.GetInt(sysconfig.FullKeyPath(consts.GPUNS, "ring_buffer_pages_per_device")),
-		MaxStreamInactivity:          spCfg.GetInt(sysconfig.FullKeyPath(consts.GPUNS, "max_stream_inactivity_seconds")) * time.Second,
+		MaxStreamInactivity:          time.Duration(spCfg.GetInt(sysconfig.FullKeyPath(consts.GPUNS, "max_stream_inactivity_seconds"))) * time.Second,
 	}
 }
