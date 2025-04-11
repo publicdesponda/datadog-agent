@@ -15,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/gpu/model"
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/gpu/config"
 	gpuebpf "github.com/DataDog/datadog-agent/pkg/gpu/ebpf"
 	ddnvml "github.com/DataDog/datadog-agent/pkg/gpu/nvml"
 	"github.com/DataDog/datadog-agent/pkg/gpu/testutil"
@@ -37,7 +38,7 @@ func getStatsGeneratorForTest(t *testing.T) (*statsGenerator, *streamCollection,
 	ktime, err := ddebpf.NowNanoseconds()
 	require.NoError(t, err)
 
-	streamHandlers := newStreamCollection(sysCtx, testutil.GetTelemetryMock(t))
+	streamHandlers := newStreamCollection(sysCtx, testutil.GetTelemetryMock(t), config.New())
 	statsGen := newStatsGenerator(sysCtx, streamHandlers, testutil.GetTelemetryMock(t))
 	statsGen.lastGenerationKTime = ktime
 	statsGen.currGenerationKTime = ktime
