@@ -208,7 +208,7 @@ func (m *mutatorCore) injectTracers(pod *corev1.Pod, config extractedPodLibInfo)
 		// webhook a while ago and customers might be relying on this behavior.
 		//
 		// We have another webhook that does something really similar: tagsFromLabels and
-		// it this is where the responsibility should generally.
+		// that is where the responsibility for service tagging should generally be.
 		//
 		// The big difference between the two is that tagsFromLabels looks at the label
 		// metadata and we might override it and this one will look for the _name_ of the
