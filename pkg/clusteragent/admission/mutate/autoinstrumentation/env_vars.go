@@ -9,7 +9,6 @@ package autoinstrumentation
 
 import (
 	"fmt"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -60,34 +59,50 @@ const (
 	localLibraryInstrumentationInstallType = "k8s_lib_injection"
 )
 
+// envVar is a containerMutator that can append/prepend an
+// [[corev1.EnvVar]] to a container.
+//
+// This is different from using mutate/common.InjectEnv:
+//  1. InjectEnv applies to _all_ containers in a pod.
+//  2. InjectEnv has no mechamism to merge values from an existing
+//     [[corev1.EnvVar]], while we need that for [[instrumentationV1]]
+//     for the time being.
+//  3. Legacy benavior here is _append_ while InjectEnv is _prepend_.
+//  4. [[envVar]] supports both behaviors via the [[envVar.prepend]]
+//     flag.
 type envVar struct {
+	// key is the name of the env var, strictly matching to [[corev1.EnvVar.Name]].
 	key string
 
-	valFunc   envValFunc
+	// valFunc is used to merge environment variable values, with existing being
+	// provided as an argument to [[envValFunc]].
+	valFunc envValFunc
+
+	// rawEnvVar, if provided will supercede [[valFunc]] for merging.
 	rawEnvVar *corev1.EnvVar
 
-	isEligibleToInject func(*corev1.Container) bool
-	prepend            bool
+	// isEligibleToInject gives the envVar a containerFilter (used for dotnet) in
+	// [[instrumentationV1]].
+	isEligibleToInject containerFilter
+
+	// prepend, if set to true will prepend the env var instead of appending
+	// it to the container Env slice.
+	prepend bool
 }
 
-func (e envVar) nextEnvVar(prior corev1.EnvVar, found bool) (corev1.EnvVar, error) {
+func (e envVar) updateEnvVar(out *corev1.EnvVar) error {
 	if e.rawEnvVar != nil {
-		return *e.rawEnvVar, nil
+		out.Value = e.rawEnvVar.Value
+		out.ValueFrom = e.rawEnvVar.ValueFrom
+		return nil
 	}
 
-	if !found {
-		return corev1.EnvVar{
-			Name:  e.key,
-			Value: e.valFunc(""),
-		}, nil
+	if out.ValueFrom != nil {
+		return fmt.Errorf("%q is defined via ValueFrom, update not supported", e.key)
 	}
 
-	if prior.ValueFrom != nil {
-		return prior, fmt.Errorf("%q is defined via ValueFrom", e.key)
-	}
-
-	prior.Value = e.valFunc(prior.Value)
-	return prior, nil
+	out.Value = e.valFunc(out.Value)
+	return nil
 }
 
 // mutateContainer implements containerMutator for envVar.
@@ -96,28 +111,22 @@ func (e envVar) mutateContainer(c *corev1.Container) error {
 		return nil
 	}
 
-	index := slices.IndexFunc(c.Env, func(ev corev1.EnvVar) bool {
-		return ev.Name == e.key
-	})
-
-	var found bool
-	var priorEnvVar corev1.EnvVar
-	if index >= 0 {
-		priorEnvVar = c.Env[index]
-		found = true
+	for idx, env := range c.Env {
+		if env.Name == e.key {
+			if err := e.updateEnvVar(&env); err != nil {
+				return err
+			}
+			c.Env[idx] = env
+			return nil // if we found it we are done
+		}
 	}
 
-	nextEnvVar, err := e.nextEnvVar(priorEnvVar, found)
-	if err != nil {
+	env := corev1.EnvVar{Name: e.key}
+	if err := e.updateEnvVar(&env); err != nil {
 		return err
 	}
 
-	if found {
-		c.Env[index] = nextEnvVar
-	} else {
-		c.Env = appendOrPrepend(nextEnvVar, c.Env, e.prepend)
-	}
-
+	c.Env = appendOrPrepend(env, c.Env, e.prepend)
 	return nil
 }
 
