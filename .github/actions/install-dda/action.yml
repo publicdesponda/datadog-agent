@@ -15,8 +15,11 @@ runs:
   steps:
   - name: Set version
     id: set-version
-    run: echo "version=$(cat .dda/version)" >> $GITHUB_OUTPUT
+    run: echo "version=${TEST}x" >> $GITHUB_OUTPUT
     shell: bash
+  - name: Verify
+    run: echo "Got version: ${{ steps.set-version.outputs.version }}"
+
 
   - name: Install dda
     uses: DataDog/datadog-agent-dev@4540b9f990efec2113005942a3b434ed93eeebb8
